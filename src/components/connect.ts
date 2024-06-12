@@ -12,12 +12,10 @@ import '@shoelace-style/shoelace/dist/components/dropdown/dropdown'
 import '@shoelace-style/shoelace/dist/components/icon/icon'
 import '@shoelace-style/shoelace/dist/components/menu/menu'
 import '@shoelace-style/shoelace/dist/components/menu-item/menu-item'
-import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js'
 import { SlAlert, SlDialog } from '@shoelace-style/shoelace'
 import { getAddressInfo } from 'bitcoin-address-validation'
 import { StateController, walletState } from '../lib/walletState'
 import { WalletNames, WalletType, WalletTypes } from '../lib/wallets'
-import { getJson } from '../../lib/fetch'
 
 @customElement('connect-button')
 export class ConnectButton extends LitElement {
@@ -29,7 +27,6 @@ export class ConnectButton extends LitElement {
   @state() ticks: any
 
   constructor() {
-    setBasePath('../../../node_modules/@shoelace-style/shoelace/dist')
     super()
     new StateController(this, walletState)
   }
@@ -74,19 +71,12 @@ export class ConnectButton extends LitElement {
     this.connectingWallet = undefined
   }
 
-  async updateBalance() {
-    const result = await fetch(`/api/brc20Balance?address=${walletState.address}`).then(getJson)
-    console.log('update brc20 balance:', JSON.stringify(result.data))
-    const balance = result.data?.detail
-    if (Array.isArray(balance)) this.ticks = balance.length
-  }
-
   render() {
     return html`
       ${when(
         walletState.address,
         () => html`
-          <sl-dropdown placement="bottom-end" @sl-show=${this.updateBalance.bind(this)}>
+          <sl-dropdown placement="bottom-end">
             <sl-button slot="trigger" caret pill>
               <p class="w-28 sm:w-auto truncate sm:text-clip">${walletState.address}</p>
             </sl-button>

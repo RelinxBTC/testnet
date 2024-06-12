@@ -54,7 +54,7 @@ export class RelinxMain extends LitElement {
       <nav class="flex justify-between py-4">
         <div class="flex">
           <a href="#" class="-m-1.5 p-1.5">
-            <img class="h-8 w-auto" src="../logo.svg" alt="" />
+            <img class="h-10 w-auto" src="../relinx_logo.png" alt="" />
           </a>
         </div>
         <div class="justify-end">
@@ -89,10 +89,6 @@ export class RelinxMain extends LitElement {
 
           <div class="relative panel"></div>
         </div>
-      </div>
-      <div>
-        <h1>icon</h1>
-        <sl-icon slot="prefix" name="123"></sl-icon>
       </div>
     </div>`
   }
