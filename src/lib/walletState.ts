@@ -2,7 +2,7 @@ import { State, property, storage } from '@lit-app/state'
 import { Balance, Wallet, WalletType } from './wallets'
 import { UniSat } from './wallets/unisat'
 import { OKX } from './wallets/okx'
-import { getJson } from './api/fetch'
+import { getJson } from '../../lib/fetch'
 
 export { StateController, type Unsubscribe } from '@lit-app/state'
 

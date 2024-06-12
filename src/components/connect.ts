@@ -3,7 +3,7 @@ import { customElement, state } from 'lit/decorators.js'
 import { Ref, createRef, ref } from 'lit/directives/ref.js'
 import { when } from 'lit/directives/when.js'
 import { map } from 'lit/directives/map.js'
-import style from '../base.css?inline'
+import style from '/src/base.css?inline'
 import '@shoelace-style/shoelace/dist/components/alert/alert'
 import '@shoelace-style/shoelace/dist/components/button/button'
 import '@shoelace-style/shoelace/dist/components/dialog/dialog'
@@ -17,7 +17,7 @@ import { SlAlert, SlDialog } from '@shoelace-style/shoelace'
 import { getAddressInfo } from 'bitcoin-address-validation'
 import { StateController, walletState } from '../lib/walletState'
 import { WalletNames, WalletType, WalletTypes } from '../lib/wallets'
-import { getJson } from '../lib/api/fetch'
+import { getJson } from '../../lib/fetch'
 
 @customElement('connect-button')
 export class ConnectButton extends LitElement {

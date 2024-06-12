@@ -1,6 +1,6 @@
-import { type Balance } from '../../../api_lib/types'
+import { type Balance } from '../../../lib/types'
 
-export { type Balance } from '../../../api_lib/types'
+export { type Balance } from '../../../lib/types'
 
 export interface Wallet {
   installed: boolean

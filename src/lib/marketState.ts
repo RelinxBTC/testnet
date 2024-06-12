@@ -1,5 +1,5 @@
 import { State, StateEvent, property } from '@lit-app/state'
-import { getJson } from '../../api_lib/fetch'
+import { getJson } from '../../lib/fetch'
 
 export { StateController, type Unsubscribe } from '@lit-app/state'
 
