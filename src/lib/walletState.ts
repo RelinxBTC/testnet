@@ -80,28 +80,11 @@ class WalletState extends State {
   }
 
   public async updateDepositAddress() {
-    return (this.promises['depositAddress'] ??= fetch(`/api/depositAddress`)
+    return (this.promises['depositAddress'] ??= this.getPublicKey()
+      .then((publicKey) => fetch(`/api/depositAddress?pub=${publicKey}`))
       .then(getJson)
       .then((js) => js.address)
       .finally(() => delete this.promises['depositAddress']))
-  }
-
-  // ---- brc20 deposit address ----
-  @property() private _depositBrc20address?: string
-  public get depositBrc20address(): string | undefined {
-    if (this._depositBrc20address) return this._depositBrc20address
-    this.updateDepositBrc20Address()
-  }
-  public async getDepositBrc20Address() {
-    return this._depositBrc20address ?? this.updateDepositBrc20Address()
-  }
-
-  public async updateDepositBrc20Address() {
-    return (this.promises['depositBrc20Address'] ??= this.getPublicKey()
-      .then((publicKey) => fetch(`/api/depositBrc20Address?pub=${publicKey}`))
-      .then(getJson)
-      .then((js) => js.address)
-      .finally(() => delete this.promises['depositBrc20Address']))
   }
 
   // ---- balance ----
@@ -126,29 +109,6 @@ class WalletState extends State {
       .finally(() => delete this.promises['balance']))
   }
 
-  // ---- brc20 balances ----
-  @property({ type: Array }) private _brc20Balance?: Brc20Balance[]
-  public get brc20Balance(): Brc20Balance[] | undefined {
-    if (this._brc20Balance) return this._brc20Balance
-    this.updateBrc20Balance()
-  }
-  public async getBrc20Balance() {
-    return this._brc20Balance ?? this.updateBrc20Balance()
-  }
-
-  public async updateBrc20Balance(): Promise<Brc20Balance[]> {
-    return (this.promises['brc20Balance'] ??= this.getAddress()
-      .then((address) => fetch(`/api/brc20Balance?address=${address}`))
-      .then((res) => res.json())
-      .then((res) => {
-        console.log('update brc20 balance:', JSON.stringify(res.data))
-        this._brc20Balance = res.data.detail.map((b: any) => {
-          return { tick: b.ticker, ...b }
-        })
-      })
-      .finally(() => delete this.promises['brc20Balance']))
-  }
-
   // ---- protocol balance ----
   @property({ type: Object }) private _protocolBalance?: Balance
   public get protocolBalance(): Balance | undefined {
@@ -161,34 +121,11 @@ class WalletState extends State {
   }
 
   public async updateProtocolBalance(): Promise<Balance> {
-    return (this.promises['protocolBalance'] ??= this.getAddress()
-      .then((address) => fetch(`/api/protocolBalance?address=${address}`))
+    return (this.promises['protocolBalance'] ??= Promise.all([this.getAddress(), this.getPublicKey()])
+      .then(([address, publicKey]) => fetch(`/api/protocolBalance?address=${address}&pub=${publicKey}`))
       .then(getJson)
       .then((balance) => (this._protocolBalance = balance))
       .finally(() => delete this.promises['protocolBalance']))
-  }
-
-  // ---- collateral balance ----
-  @property({ type: Object }) private _collateralBalance?: Brc20Balance[]
-  public get collateralBalance(): Brc20Balance[] | undefined {
-    if (this._collateralBalance) return this._collateralBalance
-    this.updateCollateralBalance()
-  }
-
-  public async getCollateralBalance() {
-    return this._collateralBalance ?? this.updateCollateralBalance()
-  }
-
-  public async updateCollateralBalance(): Promise<Brc20Balance[]> {
-    return (this.promises['collateralBalance'] ??= this.getDepositBrc20Address()
-      .then((address) => fetch(`/api/brc20Balance?address=${address}`))
-      .then((res) => res.json())
-      .then((res) => {
-        console.log('update collateral balance:', JSON.stringify(res.data))
-        return res.data.detail
-      })
-      .then((balances) => (this._collateralBalance = balances))
-      .finally(() => delete this.promises['collateralBalance']))
   }
 
   // --- wallet connector ----

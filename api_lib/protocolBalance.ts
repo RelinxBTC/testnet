@@ -47,13 +47,13 @@ function parseTxs(txs: Tx[], address: string, protocolAddress: string): number {
   return value
 }
 
-export async function protocolBalance(address: string): Promise<Balance> {
+export async function protocolBalance(address: string, userKey: string): Promise<Balance> {
   const {
     bitcoin: { addresses }
   } = mempool()
   const { api } = makeBitcoinAPI({ hostname: 'mempool.space', network: 'testnet' })
 
-  const protocolAddress = getSupplyP2tr().address!
+  const protocolAddress = getSupplyP2tr(userKey).address!
 
   const txs = await addresses.getAddressTxsMempool({ address: protocolAddress })
   const unconfirmed = parseTxs(txs, address as string, protocolAddress)
