@@ -18,6 +18,9 @@ import { SupplyPanel } from './components/supply'
 import { Unsubscribe, walletState } from './lib/walletState'
 import { formatUnits } from './lib/units'
 import { Balance } from './lib/wallets'
+import { getJson } from '../lib/fetch'
+import * as btc from '@scure/btc-signer'
+import { hex } from '@scure/base'
 
 setBasePath(import.meta.env.MODE === 'development' ? 'node_modules/@shoelace-style/shoelace/dist' : '/')
 
@@ -91,6 +94,29 @@ export class AppMain extends LitElement {
     this.supplyPanel.value?.show()
   }
 
+  withdraw() {
+    Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts]).then(
+      async ([publicKey, accounts]) => {
+        var res = await fetch(`/api/withdraw?pub=${publicKey}&address=${accounts?.[0]}`).then(getJson)
+        if (!res.psbt) {
+          console.warn('withdraw tx not generated', res)
+          return
+        }
+        var tx = btc.Transaction.fromPSBT(hex.decode(res.psbt))
+        var toSignInputs = []
+        for (var i = 0; i < tx.inputsLength; i++) toSignInputs.push({ index: i, publicKey, disableTweakSigner: true })
+        walletState.connector
+          ?.signPsbt(res.psbt, {
+            autoFinalized: true,
+            toSignInputs
+          })
+          .then((hex) => {
+            walletState.connector?.pushPsbt(hex).then((id) => console.log(id))
+          })
+      }
+    )
+  }
+
   render() {
     return html` <div class="mx-auto max-w-screen-lg px-6 lg:px-0 pb-6">
       <nav class="flex justify-between py-4">
@@ -104,33 +130,33 @@ export class AppMain extends LitElement {
         </div>
       </nav>
       <div class="my-10 grid sm:flex">
-      <div class="sm:flex-auto font-medium">
+        <div class="sm:flex-auto font-medium">
+          ${when(
+            (this.protocolBalance?.total ?? 0) >= 0,
+            () => html` <span class="text-xs" style="color:var(--sl-color-green-500)">Balance</span> `,
+            () => html`
+              <span class="text-xs" style="color:var(--sl-color-green-500)">Borrowing</span
+              ><span class="text-xs text-sl-neutral-600">@</span><span class="text-xs">2.6%</span>
+            `
+          )}
+          <div class="flex text-4xl my-1 items-center">
+            <sl-icon outline name="currency-bitcoin"></sl-icon>
+            ${Math.floor(Math.abs(this.protocolBalance?.total ?? 0) / 1e8)}.<span class="text-sl-neutral-600"
+              >${Math.floor((Math.abs(this.protocolBalance?.total ?? 0) % 1e8) / 1e4)
+                .toString()
+                .padStart(4, '0')}</span
+            >
             ${when(
-              (this.protocolBalance?.total ?? 0) >= 0,
-              () => html` <span class="text-xs" style="color:var(--sl-color-green-500)">Balance</span> `,
-              () => html`
-                <span class="text-xs" style="color:var(--sl-color-green-500)">Borrowing</span
-                ><span class="text-xs text-sl-neutral-600">@</span><span class="text-xs">2.6%</span>
-              `
+              this.protocolBalance?.unconfirmed,
+              () =>
+                html`<span class="text-xs ml-1 border-l pl-2 text-sl-neutral-600 font-light">
+                  ${formatUnits(Math.abs(this.protocolBalance!.confirmed), 8)} confirmed<br />
+                  ${formatUnits(Math.abs(this.protocolBalance!.unconfirmed), 8)} unconfirmed
+                </span>`
             )}
-            <div class="flex text-4xl my-1 items-center">
-              <sl-icon outline name="currency-bitcoin"></sl-icon>
-              ${Math.floor(Math.abs(this.protocolBalance?.total ?? 0) / 1e8)}.<span class="text-sl-neutral-600"
-                >${Math.floor((Math.abs(this.protocolBalance?.total ?? 0) % 1e8) / 1e4)
-                  .toString()
-                  .padStart(4, '0')}</span
-              >
-              ${when(
-                this.protocolBalance?.unconfirmed,
-                () =>
-                  html`<span class="text-xs ml-1 border-l pl-2 text-sl-neutral-600 font-light">
-                    ${formatUnits(Math.abs(this.protocolBalance!.confirmed), 8)} confirmed<br />
-                    ${formatUnits(Math.abs(this.protocolBalance!.unconfirmed), 8)} unconfirmed
-                  </span>`
-              )}
-            </div>
-            <span class="text-xs">$0.00</span>
           </div>
+          <span class="text-xs">$0.00</span>
+        </div>
         <div class="mt-5 flex sm:my-auto space-x-4">
           <sl-button
             class="supply"
@@ -141,6 +167,10 @@ export class AppMain extends LitElement {
           >
             <sl-icon slot="prefix" name="plus-circle-fill"></sl-icon>
             Supply BTC
+          </sl-button>
+          <sl-button class="supply" variant="success" @click=${() => this.withdraw()} pill>
+            <sl-icon slot="prefix" name="dash-circle-fill"></sl-icon>
+            Withdraw BTC
           </sl-button>
         </div>
       </div>

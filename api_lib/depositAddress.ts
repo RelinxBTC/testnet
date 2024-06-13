@@ -26,26 +26,31 @@ export function getSupplyP2tr(userKey: string, redeem?: any) {
 }
 
 /**
- * get time-lock self-custody script, which can be spent by userKey when time
+ * get time-lock self-custody taproot, which can be spent by userKey when time
  * passed, or with 2/2 multisig from user&MPC.
  */
 export function getTLSCScriptTree(userKey: string): Taptree {
   return {
-    output: Buffer.from(
-      Script.encode([
-        'DEPTH', // push stack depth
-        '1SUB', // sub 1
-        'IF', // result still greater, which means stack contains two signature
-        toXOnlyU8(hdKey.publicKey), // check MPC key, here use hd public key for demo
-        'CHECKSIGVERIFY', // fail if signature does not match
-        'ELSE', // stack contains only one signature
-        'OP_1', // 1 block later
-        'CHECKSEQUENCEVERIFY', // fail if block not passes
-        'DROP', // drop check result
-        'ENDIF',
-        toXOnlyU8(Buffer.from(userKey)), // check user key
-        'CHECKSIG' // fail if signature does not match
-      ])
-    )
+    output: scriptTLSC(userKey)
   }
+}
+
+/** Time-lock self-custody script */
+export function scriptTLSC(userKey: string): Buffer {
+  return Buffer.from(
+    Script.encode([
+      'DEPTH', // push stack depth
+      '1SUB', // sub 1
+      'IF', // result still greater, which means stack contains two signature
+      toXOnlyU8(hdKey.publicKey), // check MPC key, here use hd public key for demo
+      'CHECKSIGVERIFY', // fail if signature does not match
+      'ELSE', // stack contains only one signature
+      'OP_1', // 1 block later
+      'CHECKSEQUENCEVERIFY', // fail if block not passes
+      'DROP', // drop check result
+      'ENDIF',
+      toXOnlyU8(Buffer.from(userKey)), // check user key
+      'CHECKSIG' // fail if signature does not match
+    ])
+  )
 }
