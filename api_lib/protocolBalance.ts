@@ -1,4 +1,4 @@
-import { Balance } from './types.js'
+import { Balance } from '../lib/types.js'
 import { getSupplyP2tr } from './depositAddress.js'
 
 import { Tx } from '@mempool/mempool.js/lib/interfaces/bitcoin/transactions.js'

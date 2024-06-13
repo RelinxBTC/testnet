@@ -1,5 +1,5 @@
 import { Script } from '@scure/btc-signer'
-import { toXOnlyU8 } from './utils.ts'
+import { toXOnlyU8 } from './utils.js'
 
 export function scriptOrd(publicKey: Uint8Array, brcJson: string) {
   return Buffer.from(

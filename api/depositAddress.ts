@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getSupplyP2tr } from '../lib/depositAddress.js'
+import { getSupplyP2tr } from '../api_lib/depositAddress.js'
 
 export default async function handler(_: VercelRequest, response: VercelResponse) {
   try {

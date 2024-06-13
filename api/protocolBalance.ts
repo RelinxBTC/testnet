@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { protocolBalance } from '../lib/protocolBalance.js'
-import { getSupplyP2tr } from '../lib/depositAddress.js'
-import { mempool } from '../lib/mempool.js'
+import { protocolBalance } from '../api_lib/protocolBalance.js'
+import { getSupplyP2tr } from '../api_lib/depositAddress.js'
+import { mempool } from '../api_lib/mempool.js'
 import { Balance } from '../lib/types.js'
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
