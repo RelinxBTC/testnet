@@ -1,5 +1,6 @@
 import { LitElement, html, unsafeCSS } from 'lit'
 import { customElement, state } from 'lit/decorators.js'
+import { Ref, createRef, ref } from 'lit/directives/ref.js'
 import baseStyle from './base.css?inline'
 import style from './main.css?inline'
 import './global.css'
@@ -11,6 +12,8 @@ import '@shoelace-style/shoelace/dist/components/divider/divider'
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip'
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js'
 import './components/connect.ts'
+import './components/supply'
+import { SupplyPanel } from './components/supply'
 import { Unsubscribe, walletState } from './lib/walletState'
 
 setBasePath(import.meta.env.MODE === 'development' ? 'node_modules/@shoelace-style/shoelace/dist' : '/')
@@ -31,22 +34,41 @@ globalThis.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',
 })
 
 @customElement('app-main')
-export class RelinxMain extends LitElement {
+export class AppMain extends LitElement {
   @state() walletBalance = 0
+  @state() supplyPanel: Ref<SupplyPanel> = createRef<SupplyPanel>()
   static styles = [unsafeCSS(baseStyle), unsafeCSS(style)]
   private stateUnsubscribes: Unsubscribe[] = []
 
   connectedCallback(): void {
+    console.log('callback..')
     super.connectedCallback()
     this.stateUnsubscribes.push(
       walletState.subscribe((k, v) => {
+        console.log(k, v)
         switch (k) {
           case '_balance':
             this.walletBalance = v?.total ?? 0
+            console.log('balance->' + this.walletBalance)
+            break
+          case '_address':
+            if (v) {
+              walletState.updateBalance()
+            }
             break
         }
       })
     )
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback()
+    this.stateUnsubscribes.forEach((f) => f())
+    this.stateUnsubscribes = []
+  }
+
+  supply() {
+    this.supplyPanel.value?.show()
   }
 
   render() {
@@ -61,7 +83,21 @@ export class RelinxMain extends LitElement {
           <connect-button></connect-button>
         </div>
       </nav>
-      <div class="my-10 grid sm:flex"></div>
+      <div class="my-10 grid sm:flex">
+        <div class="sm:flex-auto font-medium"></div>
+        <div class="mt-5 flex sm:my-auto space-x-4">
+          <sl-button
+            class="supply"
+            variant=${this.walletBalance <= 0 ? 'default' : 'success'}
+            @click=${() => this.supply()}
+            ?disabled=${this.walletBalance <= 0}
+            pill
+          >
+            <sl-icon slot="prefix" name="plus-circle-fill"></sl-icon>
+            Supply BTC
+          </sl-button>
+        </div>
+      </div>
       <div class="grid grid-cols-5 space-y-5 sm:grid-cols-12 sm:space-x-5 sm:space-y-0">
         <div class="col-span-7">
           <div class="relative panel !rounded-none"></div>
@@ -85,6 +121,7 @@ export class RelinxMain extends LitElement {
                 <div class="mt-2">2.65%</div>
               </div>
             </div>
+            <supply-panel ${ref(this.supplyPanel)}></supply-panel>
           </div>
 
           <div class="relative panel"></div>
@@ -96,6 +133,6 @@ export class RelinxMain extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'relinx-main': RelinxMain
+    'app-main': AppMain
   }
 }
