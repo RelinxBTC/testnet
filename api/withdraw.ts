@@ -1,13 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import * as bitcoin from 'bitcoinjs-lib'
-import { LEAF_VERSION_TAPSCRIPT } from 'bitcoinjs-lib/src/payments/bip341.js'
-import ecc from '@bitcoinerlab/secp256k1'
-import { getSupplyP2tr, hdKey, scriptTLSC } from '../api_lib/depositAddress.js'
+import { getSupplyP2tr, hdKey } from '../api_lib/depositAddress.js'
 import { getJson } from '../lib/fetch.js'
-import { protocolBalance } from '../api_lib/protocolBalance.js'
 import { minimumFee } from '../api_lib/minimumFee.js'
-
-bitcoin.initEccLib(ecc)
+import * as btc from '@scure/btc-signer'
+import { hex } from '@scure/base'
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
   try {
@@ -15,67 +12,38 @@ export default async function handler(request: VercelRequest, response: VercelRe
     const address = request.query['address'] as string
     if (!pubKey) throw new Error('missing public key')
     if (!address) throw new Error('missing output address')
-    const redeem = {
-      output: scriptTLSC(pubKey),
-      redeemVersion: LEAF_VERSION_TAPSCRIPT
-    }
-    const p2tr = getSupplyP2tr(pubKey, redeem)
-    const withdrawAmt = await protocolBalance(address, pubKey)
-    console.log(p2tr.address, withdrawAmt)
+
+    const p2tr = getSupplyP2tr(pubKey)
     var value = 0
-    const psbt = new bitcoin.Psbt({ network: bitcoin.networks.testnet })
     const utxos: [] = await fetch(`https://mempool.space/testnet/api/address/${p2tr.address}/utxo`)
       .then(getJson)
       .then((utxos) =>
         utxos
           .map((utxo: any) => {
             console.log(utxo)
-            if (utxo.value < 1000 || value > withdrawAmt.total) return
             value += utxo.value
             return {
-              hash: Buffer.from(utxo.txid, 'hex').reverse(),
+              ...p2tr,
+              txid: utxo.txid,
               index: utxo.vout,
-              witnessUtxo: { value: utxo.value, script: p2tr.output! },
-              tapLeafScript: [
-                {
-                  leafVersion: redeem.redeemVersion!,
-                  script: redeem.output,
-                  controlBlock: p2tr.witness![p2tr.witness!.length - 1]
-                }
-              ]
+              witnessUtxo: { script: p2tr.script, amount: BigInt(utxo.value) }
             }
           })
           .filter((utxo: any) => utxo != undefined)
       )
-    utxos.forEach((utxo: any) => psbt.addInput(utxo))
-    if (psbt.inputCount == 0) throw new Error('No UTXO can be withdrawn')
-    psbt.addOutput({ address, value: withdrawAmt.total })
-    psbt.signAllInputs(hdKey).finalizeAllInputs()
+    const tx = new btc.Transaction()
+    utxos.forEach((utxo: any) => tx.addInput(utxo))
+    if (tx.inputsLength == 0) throw new Error('No UTXO can be withdrawn')
+    tx.sign(hdKey.privateKey!)
 
-    const newFee = await minimumFee(psbt)
-    console.log(newFee)
-    var finalPsbt = new bitcoin.Psbt({ network: bitcoin.networks.testnet })
-    // finalPsbt.setMaximumFeeRate(fastestFee + 1)
-    utxos.forEach((utxo: any) => finalPsbt.addInput(utxo))
-    finalPsbt.addOutput({ address, value: withdrawAmt.total - newFee })
-    finalPsbt.signAllInputs(hdKey).finalizeAllInputs()
+    const psbt = bitcoin.Psbt.fromBuffer(Buffer.from(tx.toPSBT()))
+    const fee = await minimumFee(psbt.finalizeAllInputs().extractTransaction(true).virtualSize())
+    const finalTx = new btc.Transaction()
+    utxos.forEach((utxo: any) => finalTx.addInput(utxo))
+    finalTx.addOutputAddress(address, BigInt(value - fee), btc.TEST_NETWORK)
+    finalTx.sign(hdKey.privateKey!)
 
-    var finalTx = finalPsbt.extractTransaction()
-
-    console.log(finalTx.getId(), finalTx.toHex())
-    finalTx.ins.forEach((i) =>
-      console.log({
-        ...i,
-        hash: i.hash.toString('hex'),
-        script: i.script.toString('hex'),
-        scriptHash: p2tr.pubkey?.toString('hex'),
-        scriptAddress: p2tr.address,
-        witness: i.witness.map((w) => w.toString('hex'))
-      })
-    )
-    console.log(bitcoin.Transaction.fromBuffer(finalTx.toBuffer()).ins[0].hash.toString('hex'))
-
-    response.status(200).send({ psbt: finalPsbt.toHex() })
+    response.status(200).send({ psbt: hex.encode(finalTx.toPSBT()) })
   } catch (err) {
     if (err instanceof Error) {
       console.log(err)
