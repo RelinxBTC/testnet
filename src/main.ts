@@ -2,6 +2,7 @@ import { LitElement, html, unsafeCSS } from 'lit'
 import { customElement, state } from 'lit/decorators.js'
 import { Ref, createRef, ref } from 'lit/directives/ref.js'
 import { when } from 'lit/directives/when.js'
+import { map } from 'lit/directives/map.js'
 import baseStyle from './base.css?inline'
 import style from './main.css?inline'
 import './global.css'
@@ -14,7 +15,9 @@ import '@shoelace-style/shoelace/dist/components/tooltip/tooltip'
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js'
 import './components/connect.ts'
 import './components/supply'
+import './components/utxos'
 import { SupplyPanel } from './components/supply'
+import { UtxoRow } from './components/utxos'
 import { Unsubscribe, walletState } from './lib/walletState'
 import { formatUnits } from './lib/units'
 import { Balance } from './lib/wallets'
@@ -43,14 +46,15 @@ globalThis.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',
 export class AppMain extends LitElement {
   @state() walletBalance = 0
   @state() supplyPanel: Ref<SupplyPanel> = createRef<SupplyPanel>()
+  @state() UtxoRow: Ref<UtxoRow> = createRef<UtxoRow>()
   @state() protocolBalance?: Balance
+  @state() utxos?: []
   static styles = [unsafeCSS(baseStyle), unsafeCSS(style)]
 
   private protocolBalanceUpdater?: Promise<any>
   private stateUnsubscribes: Unsubscribe[] = []
 
   connectedCallback(): void {
-    console.log('callback..')
     super.connectedCallback()
     this.stateUnsubscribes.push(
       walletState.subscribe((k, v) => {
@@ -73,12 +77,23 @@ export class AppMain extends LitElement {
       })
     )
     this.protocolBalanceUpdater ??= this.updateProtocolBalance()
+    this.updateProtocolUtxos()
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback()
     this.stateUnsubscribes.forEach((f) => f())
     this.stateUnsubscribes = []
+  }
+
+  async updateProtocolUtxos() {
+    Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts]).then(
+      async ([publicKey, accounts]) => {
+        await fetch(`/api/utxo?pub=${publicKey}&address=${accounts?.[0]}`)
+          .then(getJson)
+          .then((utxos) => (this.utxos = utxos))
+      }
+    )
   }
 
   async updateProtocolBalance() {
@@ -176,7 +191,17 @@ export class AppMain extends LitElement {
       </div>
       <div class="grid grid-cols-5 space-y-5 sm:grid-cols-12 sm:space-x-5 sm:space-y-0">
         <div class="col-span-7">
-          <div class="relative panel !rounded-none"></div>
+          <div class="relative panel !rounded-none">
+            <ul>
+              <li class="text-xs mb-3">Deposits</li>
+              ${map(this.utxos, (utxo) => {
+                console.log(utxo)
+                return html`<li>
+                  <utxo-row class="py-4 flex items-center" .utxo=${utxo}></utxo-row>
+                </li>`
+              })}
+            </ul>
+          </div>
         </div>
 
         <div class="col-span-5 space-y-2">
