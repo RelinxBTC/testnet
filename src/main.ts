@@ -12,6 +12,8 @@ import '@shoelace-style/shoelace/dist/components/icon-button/icon-button'
 import '@shoelace-style/shoelace/dist/components/button/button'
 import '@shoelace-style/shoelace/dist/components/divider/divider'
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip'
+import '@shoelace-style/shoelace/dist/components/progress-bar/progress-bar'
+import { SlProgressBar } from '@shoelace-style/shoelace'
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js'
 import './components/connect.ts'
 import './components/supply'
@@ -49,11 +51,15 @@ export class AppMain extends LitElement {
   @state() walletBalance = 0
   @state() supplyPanel: Ref<SupplyPanel> = createRef<SupplyPanel>()
   @state() UtxoRow: Ref<UtxoRow> = createRef<UtxoRow>()
+  @state() progress: Ref<SlProgressBar> = createRef<SlProgressBar>()
   @state() protocolBalance?: Balance
   @state() utxos?: []
+  @state() latestBlock?: 0
   static styles = [unsafeCSS(baseStyle), unsafeCSS(style)]
 
   private protocolBalanceUpdater?: Promise<any>
+  private utxoUpdater?: Promise<any>
+  private lastBlockUpdater?: Promise<any>
   private stateUnsubscribes: Unsubscribe[] = []
 
   connectedCallback(): void {
@@ -79,7 +85,8 @@ export class AppMain extends LitElement {
       })
     )
     this.protocolBalanceUpdater ??= this.updateProtocolBalance()
-    this.updateProtocolUtxos()
+    this.utxoUpdater ??= this.updateProtocolUtxos()
+    this.lastBlockUpdater ??= this.updateLastBlock()
   }
 
   disconnectedCallback(): void {
@@ -89,13 +96,27 @@ export class AppMain extends LitElement {
   }
 
   async updateProtocolUtxos() {
-    Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts]).then(
-      async ([publicKey, accounts]) => {
-        await fetch(`/api/utxo?pub=${publicKey}&address=${accounts?.[0]}`)
-          .then(getJson)
-          .then((utxos) => (this.utxos = utxos))
-      }
-    )
+    while (true) {
+      await Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts])
+        .then(async ([publicKey, accounts]) => {
+          await fetch(`/api/utxo?pub=${publicKey}&address=${accounts?.[0]}`)
+            .then(getJson)
+            .then((utxos) => (this.utxos = utxos.reverse()))
+        })
+        .catch((e) => console.log(`failed to update utxo list, error:`, e))
+
+      await new Promise((r) => setTimeout(r, 60000))
+    }
+  }
+
+  async updateLastBlock() {
+    while (true) {
+      await fetch('https://mempool.space/testnet/api/blocks/tip/height')
+        .then(getJson)
+        .then((blockInfo) => (this.latestBlock = blockInfo))
+        .catch((e) => console.log(`failed to load latest block height from mempool API, error:`, e))
+      await new Promise((r) => setTimeout(r, 120000))
+    }
   }
 
   async updateProtocolBalance() {
@@ -254,10 +275,11 @@ export class AppMain extends LitElement {
           <div class="relative panel !rounded-none">
             <ul>
               <li class="text-xs mb-3">Deposits</li>
+              ${when((this.utxos?.length ?? 0) == 0, () => html` <sl-progress-bar indeterminate></sl-progress-bar> `)}
               ${map(this.utxos, (utxo) => {
                 console.log(utxo)
                 return html`<li>
-                  <utxo-row class="py-4 flex items-center" .utxo=${utxo}></utxo-row>
+                  <utxo-row class="py-4 flex items-center" .utxo=${utxo} .lastBlock=${this.latestBlock}></utxo-row>
                 </li>`
               })}
             </ul>

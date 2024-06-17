@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import * as bitcoin from 'bitcoinjs-lib'
 import { LEAF_VERSION_TAPSCRIPT } from 'bitcoinjs-lib/src/payments/bip341.js'
 import ecc from '@bitcoinerlab/secp256k1'
-import { getSupplyP2tr, hdKey, scriptTLSC } from '../api_lib/depositAddress.js'
+import { getSupplyP2tr } from '../api_lib/depositAddress.js'
 import { getJson } from '../lib/fetch.js'
 import { protocolBalance } from '../api_lib/protocolBalance.js'
 
@@ -14,11 +14,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
     const address = request.query['address'] as string
     if (!pubKey) throw new Error('missing public key')
     if (!address) throw new Error('missing output address')
-    const redeem = {
-      output: scriptTLSC(pubKey),
-      redeemVersion: LEAF_VERSION_TAPSCRIPT
-    }
-    const p2tr = getSupplyP2tr(pubKey, redeem)
+    const p2tr = getSupplyP2tr(pubKey)
     const withdrawAmt = await protocolBalance(address, pubKey)
     console.log(p2tr.address, withdrawAmt)
     var value = 0
