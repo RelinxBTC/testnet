@@ -1,10 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import * as bitcoin from 'bitcoinjs-lib'
-import { LEAF_VERSION_TAPSCRIPT } from 'bitcoinjs-lib/src/payments/bip341.js'
 import ecc from '@bitcoinerlab/secp256k1'
 import { getSupplyP2tr } from '../api_lib/depositAddress.js'
 import { getJson } from '../lib/fetch.js'
-import { protocolBalance } from '../api_lib/protocolBalance.js'
 
 bitcoin.initEccLib(ecc)
 
@@ -15,16 +13,24 @@ export default async function handler(request: VercelRequest, response: VercelRe
     if (!pubKey) throw new Error('missing public key')
     if (!address) throw new Error('missing output address')
     const p2tr = getSupplyP2tr(pubKey)
-    const withdrawAmt = await protocolBalance(address, pubKey)
-    console.log(p2tr.address, withdrawAmt)
-    var value = 0
-    const psbt = new bitcoin.Psbt({ network: bitcoin.networks.testnet })
+    console.log('supply addr:' + p2tr.address)
+    const lastBlock = await fetch('https://mempool.space/testnet/api/blocks/tip/height').then(getJson)
+    console.log('lastBlock -> ' + lastBlock)
     const utxos: [] = await fetch(`https://mempool.space/testnet/api/address/${p2tr.address}/utxo`)
       .then(getJson)
       .then((utxos) =>
-        utxos.filter((utxo: any) => utxo != undefined)
+        utxos
+          .map((utxo: any) => {
+            if (utxo.status.confirmed && Number(lastBlock) - utxo.status.block_height > 10) {
+              utxo.status.locked = false
+            } else {
+              utxo.status.locked = true
+            }
+            console.log('utxo:' + JSON.stringify(utxo))
+            return utxo
+          }).filter((utxo: any) => utxo != undefined)
       )
-    response.status(200).send(utxos)
+    response.status(200).send(utxos.reverse())
   } catch (err) {
     if (err instanceof Error) {
       console.log(err)

@@ -54,12 +54,10 @@ export class AppMain extends LitElement {
   @state() progress: Ref<SlProgressBar> = createRef<SlProgressBar>()
   @state() protocolBalance?: Balance
   @state() utxos?: []
-  @state() latestBlock?: 0
   static styles = [unsafeCSS(baseStyle), unsafeCSS(style)]
 
   private protocolBalanceUpdater?: Promise<any>
   private utxoUpdater?: Promise<any>
-  private lastBlockUpdater?: Promise<any>
   private stateUnsubscribes: Unsubscribe[] = []
 
   connectedCallback(): void {
@@ -75,6 +73,9 @@ export class AppMain extends LitElement {
           case '_protocolBalance':
             this.protocolBalance = v
             break
+          case '_utxos':
+            this.utxos = v
+            break
           case '_address':
             if (v) {
               walletState.updateBalance()
@@ -86,7 +87,6 @@ export class AppMain extends LitElement {
     )
     this.protocolBalanceUpdater ??= this.updateProtocolBalance()
     this.utxoUpdater ??= this.updateProtocolUtxos()
-    this.lastBlockUpdater ??= this.updateLastBlock()
   }
 
   disconnectedCallback(): void {
@@ -97,25 +97,8 @@ export class AppMain extends LitElement {
 
   async updateProtocolUtxos() {
     while (true) {
-      await Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts])
-        .then(async ([publicKey, accounts]) => {
-          await fetch(`/api/utxo?pub=${publicKey}&address=${accounts?.[0]}`)
-            .then(getJson)
-            .then((utxos) => (this.utxos = utxos.reverse()))
-        })
-        .catch((e) => console.log(`failed to update utxo list, error:`, e))
-
+      await walletState.updateUTXOs().catch((e) => console.log(`failed to update utxo list, error:`, e))
       await new Promise((r) => setTimeout(r, 60000))
-    }
-  }
-
-  async updateLastBlock() {
-    while (true) {
-      await fetch('https://mempool.space/testnet/api/blocks/tip/height')
-        .then(getJson)
-        .then((blockInfo) => (this.latestBlock = blockInfo))
-        .catch((e) => console.log(`failed to load latest block height from mempool API, error:`, e))
-      await new Promise((r) => setTimeout(r, 120000))
     }
   }
 
@@ -279,7 +262,7 @@ export class AppMain extends LitElement {
               ${map(this.utxos, (utxo) => {
                 console.log(utxo)
                 return html`<li>
-                  <utxo-row class="py-4 flex items-center" .utxo=${utxo} .lastBlock=${this.latestBlock}></utxo-row>
+                  <utxo-row class="py-4 flex items-center" .utxo=${utxo}></utxo-row>
                 </li>`
               })}
             </ul>

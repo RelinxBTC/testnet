@@ -7,17 +7,16 @@ import { when } from 'lit/directives/when.js'
 import style from './utxo.css?inline'
 import baseStyle from '/src/base.css?inline'
 import { formatUnits } from '../lib/units'
+import { UTXO } from '../lib/walletState'
 
 @customElement('utxo-row')
 export class UtxoRow extends LitElement {
   static styles = [unsafeCSS(baseStyle), unsafeCSS(style)]
-  @property() utxo?: { value: 0; status: { confirmed: false; block_time: 0; block_height: 0 }; txid: '' }
-  @property() lastBlock?: 0
+  @property() utxo?: UTXO
 
   connectedCallback(): void {
     super.connectedCallback()
     console.log(JSON.stringify(this.utxo))
-    console.log('last block: ' + this.lastBlock)
   }
 
   disconnectedCallback(): void {
@@ -54,16 +53,14 @@ export class UtxoRow extends LitElement {
     return html`
       <div class="ml-1 flex-auto text-s">
         ${when(
-          (this.utxo?.status.block_height ?? 0) == 0 ||
-            (this.utxo?.status.block_height ?? 0) + 1 >= (this.lastBlock ?? 0),
+          this.utxo?.status.locked,
           () =>
             html` <div class="flex text-s my-1 items-center" style="color: red;" alt="Locked">
               <sl-icon outline name="lock"></sl-icon>
             </div>`
         )}
         ${when(
-          (this.utxo?.status.block_height ?? 0) > 0 &&
-            (this.utxo?.status.block_height ?? 0) + 1 < (this.lastBlock ?? 0),
+          !this.utxo?.status.locked,
           () =>
             html` <div class="flex text-s my-1 items-center" style="color: #417505;" alt="Unlocked">
               <sl-icon outline name="unlock"></sl-icon>
