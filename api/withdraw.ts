@@ -10,8 +10,10 @@ export default async function handler(request: VercelRequest, response: VercelRe
   try {
     const pubKey = request.query['pub'] as string
     const address = request.query['address'] as string
+    const amt = request.query['amt'] as string
     if (!pubKey) throw new Error('missing public key')
     if (!address) throw new Error('missing output address')
+    if (!amt) throw new Error('missing amount value')
 
     const p2tr = getSupplyP2tr(pubKey)
     var value = 0
@@ -21,6 +23,9 @@ export default async function handler(request: VercelRequest, response: VercelRe
         utxos
           .map((utxo: any) => {
             console.log(utxo)
+            if (value > Number(amt)) {
+              return
+            }
             value += utxo.value
             return {
               ...p2tr,
@@ -40,7 +45,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
     const fee = await minimumFee(psbt.finalizeAllInputs().extractTransaction(true).virtualSize())
     const finalTx = new btc.Transaction()
     utxos.forEach((utxo: any) => finalTx.addInput(utxo))
-    finalTx.addOutputAddress(address, BigInt(value - fee), btc.TEST_NETWORK)
+    finalTx.addOutputAddress(address, BigInt(Number(amt) - fee), btc.TEST_NETWORK)
     finalTx.sign(hdKey.privateKey!)
 
     response.status(200).send({ psbt: hex.encode(finalTx.toPSBT()) })

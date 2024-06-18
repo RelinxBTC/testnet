@@ -17,8 +17,10 @@ import { SlProgressBar } from '@shoelace-style/shoelace'
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js'
 import './components/connect.ts'
 import './components/supply'
+import './components/withdraw'
 import './components/utxos'
 import { SupplyPanel } from './components/supply'
+import { WithdrawPanel } from './components/withdraw'
 import { UtxoRow } from './components/utxos'
 import { Unsubscribe, walletState } from './lib/walletState'
 import { formatUnits } from './lib/units'
@@ -50,6 +52,7 @@ globalThis.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',
 export class AppMain extends LitElement {
   @state() walletBalance = 0
   @state() supplyPanel: Ref<SupplyPanel> = createRef<SupplyPanel>()
+  @state() withdrawPanel: Ref<WithdrawPanel> = createRef<WithdrawPanel>()
   @state() UtxoRow: Ref<UtxoRow> = createRef<UtxoRow>()
   @state() progress: Ref<SlProgressBar> = createRef<SlProgressBar>()
   @state() protocolBalance?: Balance
@@ -113,6 +116,10 @@ export class AppMain extends LitElement {
 
   supply() {
     this.supplyPanel.value?.show()
+  }
+
+  withdraw() {
+    this.withdrawPanel.value?.show()
   }
 
   withdrawMPC() {
@@ -243,14 +250,20 @@ export class AppMain extends LitElement {
             <sl-icon slot="prefix" name="plus-circle-fill"></sl-icon>
             Supply BTC
           </sl-button>
-          <sl-button class="supply" variant="success" @click=${() => this.withdrawMPC()} pill>
+          <sl-button
+            class="supply"
+            variant="success"
+            @click=${() => this.withdraw()}
+            pill
+            ?disabled=${this.utxos == undefined}
+          >
             <sl-icon slot="prefix" name="dash-circle-fill"></sl-icon>
-            Withdraw With MPC
+            Withdraw BTC
           </sl-button>
-          <sl-button class="supply" variant="success" @click=${() => this.withdrawWithoutMPC()} pill>
+          <!-- <sl-button class="supply" variant="success" @click=${() => this.withdrawWithoutMPC()} pill>
             <sl-icon slot="prefix" name="dash-circle-fill"></sl-icon>
             Withdraw Without MPC
-          </sl-button>
+          </sl-button> -->
         </div>
       </div>
       <div class="grid grid-cols-5 space-y-5 sm:grid-cols-12 sm:space-x-5 sm:space-y-0">
@@ -259,6 +272,10 @@ export class AppMain extends LitElement {
             <ul>
               <li class="text-xs mb-3">Deposits</li>
               ${when(this.utxos == undefined, () => html` <sl-progress-bar indeterminate></sl-progress-bar> `)}
+              ${when(
+                this.utxos != undefined && this.utxos.length == 0,
+                () => html`<div style="font-size: 18px;"><sl-icon name="file-earmark-x"></sl-icon>No Data Found.</div> `
+              )}
               ${map(this.utxos, (utxo) => {
                 console.log(utxo)
                 return html`<li>
@@ -288,6 +305,7 @@ export class AppMain extends LitElement {
               </div>
             </div>
             <supply-panel ${ref(this.supplyPanel)}></supply-panel>
+            <withdraw-panel ${ref(this.withdrawPanel)}></withdraw-panel>
           </div>
 
           <div class="relative panel"></div>
