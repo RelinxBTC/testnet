@@ -22,6 +22,7 @@ export type UTXO = {
     block_height: number
     block_hash: string
     block_time: number
+    locked: boolean
   }
   value: number
 }
@@ -94,6 +95,12 @@ class WalletState extends State {
     this.updateBalance()
   }
 
+  @property({ type: Array }) private _utxos?: UTXO[]
+  public get utxos(): UTXO[] | undefined {
+    if (this._utxos) return this._utxos
+    this.updateUTXOs()
+  }
+
   public async getBalance() {
     return this._balance ?? this.updateBalance()
   }
@@ -126,6 +133,14 @@ class WalletState extends State {
       .then(getJson)
       .then((balance) => (this._protocolBalance = balance))
       .finally(() => delete this.promises['protocolBalance']))
+  }
+
+  public async updateUTXOs(): Promise<UTXO[]> {
+    return (this.promises['utxos'] ??= Promise.all([this.getAddress(), this.getPublicKey()])
+      .then(([address, publicKey]) => fetch(`/api/utxo?address=${address}&pub=${publicKey}`))
+      .then(getJson)
+      .then((utxos) => (this._utxos = utxos))
+      .finally(() => delete this.promises['utxos']))
   }
 
   // --- wallet connector ----
