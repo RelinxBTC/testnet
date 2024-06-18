@@ -70,7 +70,7 @@ export type SignPsbtOptions = {
 export const WalletEvents = ['accountsChanged', 'networkChanged'] as const
 export type WalletEvent = (typeof WalletEvents)[number]
 
-export const Networks = ['testnet', 'livenet'] as const
+export const Networks = ['testnet', 'livenet', 'signet'] as const
 export type Network = (typeof Networks)[number]
 
 export const WalletTypes = ['unisat', 'okx'] as const
