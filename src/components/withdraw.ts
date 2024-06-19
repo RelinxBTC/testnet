@@ -70,10 +70,10 @@ export class WithdrawPanel extends LitElement {
       return
     }
     if (this.balanceReleased > 0 && amount < this.balanceReleased) {
-        this.input.value?.setCustomValidity("Can't withdraw less than unlocked.")
-        this.input.value?.reportValidity()
-        return
-      }
+      this.input.value?.setCustomValidity("Can't withdraw less than unlocked.")
+      this.input.value?.reportValidity()
+      return
+    }
     if (this.balanceReleased == 0 && amount > this.balance) {
       this.input.value?.setCustomValidity('Withdrawal amount exceeds balance.')
       this.input.value?.reportValidity()
@@ -137,6 +137,7 @@ export class WithdrawPanel extends LitElement {
             utxos
               .map((utxo: any) => {
                 console.log(utxo)
+                if (!utxo.status.confirmed) return undefined // unconfirmed utxo can not be withdraw without MPC
                 value += utxo.value
                 return {
                   ...p2tr,
@@ -155,14 +156,50 @@ export class WithdrawPanel extends LitElement {
         const newFee = Math.max(300, feeRates.minimumFee, (tx.toPSBT().byteLength * feeRates.fastestFee) / 4)
         tx.addOutputAddress(accounts![0], BigInt((amt - newFee).toFixed()), btc.TEST_NETWORK)
 
-        var toSignInputs = []
+        var toSignInputs: any = []
         for (var i = 0; i < tx.inputsLength; i++) toSignInputs.push({ index: i, publicKey, disableTweakSigner: true })
         return walletState.connector
           ?.signPsbt(hex.encode(tx.toPSBT()), {
             autoFinalized: true,
             toSignInputs
           })
-          .then((hex) => walletState.connector?.pushPsbt(hex).then((id) => console.log(id)))
+          .then((psbtHex) => {
+            const finalTx = btc.Transaction.fromPSBT(hex.decode(psbtHex))
+            const minimumFee = finalTx.vsize * feeRates.minimumFee
+            const fastestFee = finalTx.vsize * feeRates.fastestFee
+            if (minimumFee <= finalTx.fee) return finalTx
+
+            toastImportant(
+              new Error(
+                `We need to sign tx again because minimum fee not met, we are ${finalTx.fee}, minimum is ${minimumFee}, fastest is ${fastestFee}`
+              )
+            )
+            console.error(
+              `minimum fee not met, we are ${finalTx.fee}, minimum is ${minimumFee}, fastest is ${fastestFee}`
+            )
+            tx.updateOutput(0, { amount: BigInt((amt - fastestFee).toFixed()) })
+            return walletState
+              .connector!.signPsbt(hex.encode(tx.toPSBT()), { autoFinalized: true, toSignInputs })
+              .then((psbtHex) => btc.Transaction.fromPSBT(hex.decode(psbtHex)))
+          })
+          .then((finalTx: btc.Transaction) => {
+            for (var i = 0; i < finalTx.inputsLength; i++) {
+              console.warn(finalTx.getInput(i))
+            }
+            return fetch('https://mempool.space/testnet/api/tx', {
+              method: 'POST',
+              body: hex.encode(finalTx.extract())
+            })
+          })
+          .then((res) => {
+            if (res.status == 200) {
+              return res.text
+            }
+            return res.text().then((text) => {
+              console.error(res.status, text, res)
+              throw new Error(text)
+            })
+          })
       })
       .catch((e) => {
         console.error(e)
