@@ -25,11 +25,6 @@ import { UtxoRow } from './components/utxos'
 import { Unsubscribe, walletState } from './lib/walletState'
 import { formatUnits } from './lib/units'
 import { Balance } from './lib/wallets'
-import { getJson } from '../lib/fetch'
-import * as btc from '@scure/btc-signer'
-import { hex } from '@scure/base'
-import { scriptTLSC } from '../lib/tlsc'
-import { toastImportant } from './lib/toast'
 
 setBasePath(import.meta.env.MODE === 'development' ? 'node_modules/@shoelace-style/shoelace/dist' : '/')
 
@@ -122,83 +117,6 @@ export class AppMain extends LitElement {
     this.withdrawPanel.value?.show()
   }
 
-  withdrawMPC() {
-    Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts]).then(
-      async ([publicKey, accounts]) => {
-        var res = await fetch(`/api/withdraw?pub=${publicKey}&address=${accounts?.[0]}`).then(getJson)
-        if (!res.psbt) {
-          console.warn('withdraw tx not generated', res)
-          return
-        }
-        var tx = btc.Transaction.fromPSBT(hex.decode(res.psbt))
-        var toSignInputs = []
-        for (var i = 0; i < tx.inputsLength; i++) toSignInputs.push({ index: i, publicKey, disableTweakSigner: true })
-        walletState.connector
-          ?.signPsbt(res.psbt, {
-            autoFinalized: true,
-            toSignInputs
-          })
-          .then((hex) => {
-            walletState.connector?.pushPsbt(hex).then((id) => console.log(id))
-          })
-      }
-    )
-  }
-
-  withdrawWithoutMPC() {
-    Promise.all([
-      walletState.connector!.publicKey,
-      walletState.connector?.accounts,
-      fetch(`/api/mpcPubkey`).then(getJson),
-      fetch('https://mempool.space/testnet/api/v1/fees/recommended').then(getJson)
-    ])
-      .then(async ([publicKey, accounts, { key: mpcPubkey }, feeRates]) => {
-        const p2tr = btc.p2tr(
-          undefined,
-          { script: scriptTLSC(hex.decode(mpcPubkey), hex.decode(publicKey)) },
-          btc.TEST_NETWORK,
-          true
-        )
-        var value = 0
-        const utxos: [] = await fetch(`https://mempool.space/testnet/api/address/${p2tr.address}/utxo`)
-          .then(getJson)
-          .then((utxos) =>
-            utxos
-              .map((utxo: any) => {
-                console.log(utxo)
-                value += utxo.value
-                return {
-                  ...p2tr,
-                  txid: utxo.txid,
-                  index: utxo.vout,
-                  witnessUtxo: { script: p2tr.script, amount: BigInt(utxo.value) }
-                }
-              })
-              .filter((utxo: any) => utxo != undefined)
-          )
-        const tx = new btc.Transaction()
-        utxos.forEach((utxo: any) => tx.addInput(utxo))
-        if (tx.inputsLength == 0) throw new Error('No UTXO can be withdrawn')
-
-        // fee may not be enough, but we can not get vsize before sign and finalize
-        const newFee = Math.max(300, feeRates.minimumFee, (tx.toPSBT().byteLength * feeRates.fastestFee) / 4)
-        tx.addOutputAddress(accounts![0], BigInt((value - newFee).toFixed()), btc.TEST_NETWORK)
-
-        var toSignInputs = []
-        for (var i = 0; i < tx.inputsLength; i++) toSignInputs.push({ index: i, publicKey, disableTweakSigner: true })
-        return walletState.connector
-          ?.signPsbt(hex.encode(tx.toPSBT()), {
-            autoFinalized: true,
-            toSignInputs
-          })
-          .then((hex) => walletState.connector?.pushPsbt(hex).then((id) => console.log(id)))
-      })
-      .catch((e) => {
-        console.error(e)
-        toastImportant(e)
-      })
-  }
-
   render() {
     return html` <div class="mx-auto max-w-screen-lg px-6 lg:px-0 pb-6">
       <nav class="flex justify-between py-4">
@@ -260,10 +178,6 @@ export class AppMain extends LitElement {
             <sl-icon slot="prefix" name="dash-circle-fill"></sl-icon>
             Withdraw BTC
           </sl-button>
-          <!-- <sl-button class="supply" variant="success" @click=${() => this.withdrawWithoutMPC()} pill>
-            <sl-icon slot="prefix" name="dash-circle-fill"></sl-icon>
-            Withdraw Without MPC
-          </sl-button> -->
         </div>
       </div>
       <div class="grid grid-cols-5 space-y-5 sm:grid-cols-12 sm:space-x-5 sm:space-y-0">

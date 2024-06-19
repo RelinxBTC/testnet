@@ -7,13 +7,9 @@ import style from './withdraw.css?inline'
 import '@shoelace-style/shoelace/dist/components/button/button'
 import '@shoelace-style/shoelace/dist/components/input/input'
 import '@shoelace-style/shoelace/dist/components/drawer/drawer'
-import { StateController, walletState } from '../lib/walletState'
+import { StateController, UTXO, walletState } from '../lib/walletState'
 import { SlDrawer, SlInput } from '@shoelace-style/shoelace'
-import { toastImportant } from '../lib/toast'
-import { getJson } from '../../lib/fetch'
-import * as btc from '@scure/btc-signer'
-import { hex } from '@scure/base'
-import { scriptTLSC } from '../../lib/tlsc'
+import { withdrawMPC, withdrawWithoutMPC } from '../lib/withdraw'
 
 @customElement('withdraw-panel')
 export class WithdrawPanel extends LitElement {
@@ -33,7 +29,6 @@ export class WithdrawPanel extends LitElement {
     // return 0
     var value = 0
     this.utxos.map((utxo: any) => {
-      console.log(utxo)
       if (!utxo.status.locked) value = value + utxo.value
     })
     return value
@@ -85,126 +80,10 @@ export class WithdrawPanel extends LitElement {
       return
     }
     if (this.balanceReleased > 0) {
-      this.withdrawWithoutMPC()
+      withdrawWithoutMPC([])
     } else {
-      this.withdrawMPC()
+      withdrawMPC()
     }
-  }
-
-  withdrawMPC() {
-    var amount = this.input.value!.valueAsNumber * 1e8
-    Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts]).then(
-      async ([publicKey, accounts]) => {
-        var res = await fetch(`/api/withdraw?pub=${publicKey}&address=${accounts?.[0]}&amt=${amount}`).then(getJson)
-        if (!res.psbt) {
-          console.warn('withdraw tx not generated', res)
-          return
-        }
-        var tx = btc.Transaction.fromPSBT(hex.decode(res.psbt))
-        var toSignInputs = []
-        for (var i = 0; i < tx.inputsLength; i++) toSignInputs.push({ index: i, publicKey, disableTweakSigner: true })
-        walletState.connector
-          ?.signPsbt(res.psbt, {
-            autoFinalized: true,
-            toSignInputs
-          })
-          .then((hex) => {
-            walletState.connector?.pushPsbt(hex).then((id) => console.log(id))
-          })
-      }
-    )
-  }
-
-  withdrawWithoutMPC() {
-    Promise.all([
-      walletState.connector!.publicKey,
-      walletState.connector?.accounts,
-      fetch(`/api/mpcPubkey`).then(getJson),
-      fetch('https://mempool.space/testnet/api/v1/fees/recommended').then(getJson)
-    ])
-      .then(async ([publicKey, accounts, { key: mpcPubkey }, feeRates]) => {
-        const p2tr = btc.p2tr(
-          undefined,
-          { script: scriptTLSC(hex.decode(mpcPubkey), hex.decode(publicKey)) },
-          btc.TEST_NETWORK,
-          true
-        )
-        var value = 0
-        var amt = this.input.value!.valueAsNumber * 1e8
-        const utxos: [] = await fetch(`https://mempool.space/testnet/api/address/${p2tr.address}/utxo`)
-          .then(getJson)
-          .then((utxos) =>
-            utxos
-              .map((utxo: any) => {
-                console.log(utxo)
-                if (!utxo.status.confirmed) return undefined // unconfirmed utxo can not be withdraw without MPC
-                value += utxo.value
-                return {
-                  ...p2tr,
-                  txid: utxo.txid,
-                  index: utxo.vout,
-                  witnessUtxo: { script: p2tr.script, amount: BigInt(utxo.value) }
-                }
-              })
-              .filter((utxo: any) => utxo != undefined)
-          )
-        const tx = new btc.Transaction()
-        utxos.forEach((utxo: any) => tx.addInput(utxo))
-        if (tx.inputsLength == 0) throw new Error('No UTXO can be withdrawn')
-
-        // fee may not be enough, but we can not get vsize before sign and finalize
-        const newFee = Math.max(300, feeRates.minimumFee, (tx.toPSBT().byteLength * feeRates.fastestFee) / 4)
-        tx.addOutputAddress(accounts![0], BigInt((amt - newFee).toFixed()), btc.TEST_NETWORK)
-
-        var toSignInputs: any = []
-        for (var i = 0; i < tx.inputsLength; i++) toSignInputs.push({ index: i, publicKey, disableTweakSigner: true })
-        return walletState.connector
-          ?.signPsbt(hex.encode(tx.toPSBT()), {
-            autoFinalized: true,
-            toSignInputs
-          })
-          .then((psbtHex) => {
-            const finalTx = btc.Transaction.fromPSBT(hex.decode(psbtHex))
-            const minimumFee = finalTx.vsize * feeRates.minimumFee
-            const fastestFee = finalTx.vsize * feeRates.fastestFee
-            if (minimumFee <= finalTx.fee) return finalTx
-
-            toastImportant(
-              new Error(
-                `We need to sign tx again because minimum fee not met, we are ${finalTx.fee}, minimum is ${minimumFee}, fastest is ${fastestFee}`
-              )
-            )
-            console.error(
-              `minimum fee not met, we are ${finalTx.fee}, minimum is ${minimumFee}, fastest is ${fastestFee}`
-            )
-            tx.updateOutput(0, { amount: BigInt((amt - fastestFee).toFixed()) })
-            return walletState
-              .connector!.signPsbt(hex.encode(tx.toPSBT()), { autoFinalized: true, toSignInputs })
-              .then((psbtHex) => btc.Transaction.fromPSBT(hex.decode(psbtHex)))
-          })
-          .then((finalTx: btc.Transaction) => {
-            for (var i = 0; i < finalTx.inputsLength; i++) {
-              console.warn(finalTx.getInput(i))
-            }
-            return fetch('https://mempool.space/testnet/api/tx', {
-              method: 'POST',
-              body: hex.encode(finalTx.extract())
-            })
-          })
-          .then((res) => {
-            if (res.status == 200) {
-              return res.text
-            }
-            return res.text().then((text) => {
-              console.error(res.status, text, res)
-              throw new Error(text)
-            })
-          })
-      })
-      .catch((e) => {
-        console.error(e)
-        toastImportant(e)
-      })
   }
 
   render() {

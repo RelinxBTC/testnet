@@ -8,11 +8,13 @@ import style from './utxo.css?inline'
 import baseStyle from '/src/base.css?inline'
 import { formatUnits } from '../lib/units'
 import { UTXO } from '../lib/walletState'
+import { withdrawMPC, withdrawWithoutMPC } from '../lib/withdraw'
 
 @customElement('utxo-row')
 export class UtxoRow extends LitElement {
   static styles = [unsafeCSS(baseStyle), unsafeCSS(style)]
   @property() utxo?: UTXO
+  @property() buttonStatus?: boolean
 
   connectedCallback(): void {
     super.connectedCallback()
@@ -21,6 +23,19 @@ export class UtxoRow extends LitElement {
 
   disconnectedCallback(): void {
     super.disconnectedCallback()
+  }
+
+  async withdraw() {
+    var utxos = []
+    utxos.push(this.utxo)
+    if (this.utxo?.status.locked) {
+      //need to do with MPC
+    } else {
+      this.buttonStatus = true
+      await withdrawWithoutMPC(utxos)
+      console.log('after withdraw')
+      this.buttonStatus = false
+    }
   }
 
   getElapsedTime(): String {
@@ -94,6 +109,19 @@ export class UtxoRow extends LitElement {
         <a href="https://mempool.space/testnet/tx/${this.utxo?.txid}" _target="blank" alt="Check Transaction Details"
           ><sl-icon outline name="box-arrow-up-right"></sl-icon
         ></a>
+      </div>
+      <div class="ml-3 flex-auto text-s">
+        ${when(
+          !this.buttonStatus,
+          () =>
+            html`<sl-button class="supply" variant="success" @click=${() => this.withdraw()} pill>
+              Withdraw
+            </sl-button>`
+        )}
+        ${when(
+          this.buttonStatus,
+          () => html`<sl-button class="supply" variant="success" pill loading>Default</sl-button>`
+        )}
       </div>
     `
   }
