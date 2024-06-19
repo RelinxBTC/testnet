@@ -65,12 +65,22 @@ export class WithdrawPanel extends LitElement {
     this.input.value?.setCustomValidity('')
     var amount = this.input.value!.valueAsNumber * 1e8
     if (this.balanceReleased > 0 && amount > this.balanceReleased) {
-      this.input.value?.setCustomValidity("Can't withdraw more than released.")
+      this.input.value?.setCustomValidity("Can't withdraw more than unlocked.")
       this.input.value?.reportValidity()
       return
     }
+    if (this.balanceReleased > 0 && amount < this.balanceReleased) {
+        this.input.value?.setCustomValidity("Can't withdraw less than unlocked.")
+        this.input.value?.reportValidity()
+        return
+      }
     if (this.balanceReleased == 0 && amount > this.balance) {
       this.input.value?.setCustomValidity('Withdrawal amount exceeds balance.')
+      this.input.value?.reportValidity()
+      return
+    }
+    if (this.balanceReleased == 0 && amount < this.balance) {
+      this.input.value?.setCustomValidity('Withdrawal amount should equal to balance.')
       this.input.value?.reportValidity()
       return
     }
@@ -127,9 +137,6 @@ export class WithdrawPanel extends LitElement {
             utxos
               .map((utxo: any) => {
                 console.log(utxo)
-                if (value > amt) {
-                  return
-                }
                 value += utxo.value
                 return {
                   ...p2tr,
