@@ -9,14 +9,15 @@ bitcoin.initEccLib(ecc)
 export default async function handler(request: VercelRequest, response: VercelResponse) {
   try {
     const pubKey = request.query['pub'] as string
-    const address = request.query['address'] as string
     if (!pubKey) throw new Error('missing public key')
+    const address = request.query['address'] as string
     if (!address) throw new Error('missing output address')
+    const network = (request.query['network'] as string) ?? ''
     const p2tr = getSupplyP2tr(pubKey)
     console.log('supply addr:' + p2tr.address)
-    const lastBlock = await fetch('https://mempool.space/testnet/api/blocks/tip/height').then(getJson)
+    const lastBlock = await fetch(`https://mempool.space/${network}/api/blocks/tip/height`).then(getJson)
     console.log('lastBlock -> ' + lastBlock)
-    const utxos: [] = await fetch(`https://mempool.space/testnet/api/address/${p2tr.address}/utxo`)
+    const utxos: [] = await fetch(`https://mempool.space/${network}/api/address/${p2tr.address}/utxo`)
       .then(getJson)
       .then((utxos) =>
         utxos
@@ -28,7 +29,8 @@ export default async function handler(request: VercelRequest, response: VercelRe
             }
             console.log('utxo:' + JSON.stringify(utxo))
             return utxo
-          }).filter((utxo: any) => utxo != undefined)
+          })
+          .filter((utxo: any) => utxo != undefined)
       )
     response.status(200).send(utxos.reverse())
   } catch (err) {

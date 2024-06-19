@@ -7,7 +7,7 @@ import { when } from 'lit/directives/when.js'
 import style from './utxo.css?inline'
 import baseStyle from '/src/base.css?inline'
 import { formatUnits } from '../lib/units'
-import { UTXO } from '../lib/walletState'
+import { UTXO, walletState } from '../lib/walletState'
 import { withdrawMPC, withdrawWithoutMPC } from '../lib/withdraw'
 
 @customElement('utxo-row')
@@ -107,7 +107,10 @@ export class UtxoRow extends LitElement {
       </div>
       <div class="ml-3 flex-auto text-s">${this.getElapsedTime()}</div>
       <div class="ml-3 flex-auto text-s">
-        <a href="https://mempool.space/testnet/tx/${this.utxo?.txid}" _target="blank" alt="Check Transaction Details"
+        <a
+          href="https://mempool.space/${walletState.network}/tx/${this.utxo?.txid}"
+          _target="blank"
+          alt="Check Transaction Details"
           ><sl-icon outline name="box-arrow-up-right"></sl-icon
         ></a>
       </div>

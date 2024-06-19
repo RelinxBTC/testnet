@@ -88,7 +88,7 @@ export class ConnectButton extends LitElement {
             </sl-button>
             <sl-menu>
               <sl-menu-item>
-                ${until(walletState.connector?.network)}
+                ${walletState.network}
                 <sl-menu slot="submenu">
                   <sl-menu-item @click=${this.switchNetwork.bind(this, 'testnet')}>testnet</sl-menu-item>
                   <sl-menu-item @click=${this.switchNetwork.bind(this, 'signet')}>signet</sl-menu-item>

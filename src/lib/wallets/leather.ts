@@ -129,6 +129,7 @@ export class Leather extends BaseWallet {
         ],
         network: this._network
       })
+      .then((response: any) => response.result.txid)
       .catch((e: any) => {
         throw e.error
       })
@@ -146,9 +147,12 @@ export class Leather extends BaseWallet {
     const signAtIndex: number[] | undefined = options?.toSignInputs.map((i) => i.index)
     const requestParams: SignPsbtRequestParams = { hex: psbtHex, signAtIndex }
 
-    return this.instance.request('signPsbt', requestParams).catch((e: any) => {
-      throw e.error
-    })
+    return this.instance
+      .request('signPsbt', requestParams)
+      .then((response: any) => response.result.hex)
+      .catch((e: any) => {
+        throw e.error
+      })
   }
 
   signPsbts(psbtHexs: string[], options?: SignPsbtOptions): Promise<string[]> {

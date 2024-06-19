@@ -1,5 +1,5 @@
 import { State, property, storage } from '@lit-app/state'
-import { Balance, Wallet, WalletType } from './wallets'
+import { Balance, Network, Wallet, WalletType } from './wallets'
 import { UniSat } from './wallets/unisat'
 import { OKX } from './wallets/okx'
 import { Leather } from './wallets/leather'
@@ -52,6 +52,28 @@ class WalletState extends State {
   protected onAccountChanged = (accounts: string[]) => {
     this.reset(false)
     if (accounts) this._address = accounts[0]
+  }
+
+  // ---- network ----
+  @property() private _network?: string
+  public get network(): string | undefined {
+    if (this._network) return this._network
+    this.updateNetwork()
+  }
+  public async getNetwork() {
+    if (this._network) return this._network
+    return await this.updateNetwork()
+  }
+
+  public async updateNetwork() {
+    return (this.promises['network'] ??= this.getConnector()
+      .then((connector) => connector.network)
+      .then((network) => (this._network = network))
+      .finally(() => delete this.promises['network']))
+  }
+  public switchNetwork(network: Network) {
+    this.connector?.switchNetwork(network)
+    this.updateNetwork()
   }
 
   // ---- public key ----
@@ -143,7 +165,8 @@ class WalletState extends State {
   public async updateUTXOs(): Promise<UTXO[]> {
     return (this.promises['utxos'] ??= Promise.all([this.getAddress(), this.getPublicKey()])
       .then(([address, publicKey]) => {
-        if (address && publicKey) return fetch(`/api/utxo?address=${address}&pub=${publicKey}`)
+        if (address && publicKey)
+          return fetch(`/api/utxo?address=${address}&pub=${publicKey}&network=${walletState.network}`)
         throw new Error('wallet not connected')
       })
       .then(getJson)
