@@ -24,13 +24,9 @@ export async function withdrawMPC(utxo: any) {
       var toSignInputs = []
       for (var i = 0; i < tx.inputsLength; i++) toSignInputs.push({ index: i, publicKey, disableTweakSigner: true })
       walletState.connector
-        ?.signPsbt(res.psbt, {
-          autoFinalized: true,
-          toSignInputs
-        })
-        .then((hex) => {
-          walletState.connector?.pushPsbt(hex).then((id) => console.log(id))
-        })
+        ?.signPsbt(res.psbt, { autoFinalized: true, toSignInputs })
+        .then((hex) => walletState.connector?.pushPsbt(hex))
+        .then((id) => console.log(id))
     }
   )
 }
@@ -40,7 +36,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
     walletState.connector!.publicKey,
     walletState.connector?.accounts,
     fetch(`/api/mpcPubkey`).then(getJson),
-    fetch('https://mempool.space/testnet/api/v1/fees/recommended').then(getJson)
+    fetch('https://mempool.space/${walletState.network}/api/v1/fees/recommended').then(getJson)
   ])
     .then(async ([publicKey, accounts, { key: mpcPubkey }, feeRates]) => {
       const p2tr = btc.p2tr(
@@ -51,7 +47,9 @@ export async function withdrawWithoutMPC(utxoList: any) {
       )
       var value = 0
       if (utxoList.length == 0) {
-        utxoList = await fetch(`https://mempool.space/testnet/api/address/${p2tr.address}/utxo`).then(getJson)
+        utxoList = await fetch(`https://mempool.space/${walletState.network}/api/address/${p2tr.address}/utxo`).then(
+          getJson
+        )
       }
       const utxos = utxoList
         .map((utxo: any) => {
@@ -83,18 +81,18 @@ export async function withdrawWithoutMPC(utxoList: any) {
         })
         .then((psbtHex) => {
           const finalTx = btc.Transaction.fromPSBT(hex.decode(psbtHex))
+          for (var i = 0; i < finalTx.inputsLength; i++) {
+            console.warn(finalTx.getInput(i))
+          }
           const minimumFee = finalTx.vsize * feeRates.minimumFee
           const fastestFee = finalTx.vsize * feeRates.fastestFee
           if (minimumFee <= finalTx.fee) return finalTx
 
-          toastImportant(
-            new Error(
-              `We need to sign tx again because minimum fee not met, we are ${finalTx.fee}, minimum is ${minimumFee}, fastest is ${fastestFee}`
-            )
+          const errMsg = new Error(
+            `We need to sign tx again because minimum fee not met, we are ${finalTx.fee}, minimum is ${minimumFee}, fastest is ${fastestFee}`
           )
-          console.error(
-            `minimum fee not met, we are ${finalTx.fee}, minimum is ${minimumFee}, fastest is ${fastestFee}`
-          )
+          toastImportant(errMsg)
+          console.log(errMsg)
           tx.updateOutput(0, { amount: BigInt((value - fastestFee).toFixed()) })
           return walletState
             .connector!.signPsbt(hex.encode(tx.toPSBT()), { autoFinalized: true, toSignInputs })
@@ -104,7 +102,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
           for (var i = 0; i < finalTx.inputsLength; i++) {
             console.warn(finalTx.getInput(i))
           }
-          return fetch('https://mempool.space/testnet/api/tx', {
+          return fetch('https://mempool.space/${walletState.network}/api/tx', {
             method: 'POST',
             body: hex.encode(finalTx.extract())
           })

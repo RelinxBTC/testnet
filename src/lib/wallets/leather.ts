@@ -135,11 +135,11 @@ export class Leather extends BaseWallet {
       })
   }
 
-  getInscriptions(cursor?: number, size?: number): Promise<{ total: number; list: Inscription[] }> {
+  getInscriptions(): Promise<{ total: number; list: Inscription[] }> {
     throw new Error('not implemented')
   }
 
-  sendInscription(toAddress: string, inscriptionId: string, options?: { feeRate: number }): Promise<string> {
+  sendInscription(): Promise<string> {
     throw new Error('not implemented')
   }
 

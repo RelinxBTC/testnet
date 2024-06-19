@@ -7,7 +7,7 @@ import style from './withdraw.css?inline'
 import '@shoelace-style/shoelace/dist/components/button/button'
 import '@shoelace-style/shoelace/dist/components/input/input'
 import '@shoelace-style/shoelace/dist/components/drawer/drawer'
-import { StateController, UTXO, walletState } from '../lib/walletState'
+import { StateController, walletState } from '../lib/walletState'
 import { SlDrawer, SlInput } from '@shoelace-style/shoelace'
 import { withdrawMPC, withdrawWithoutMPC } from '../lib/withdraw'
 
