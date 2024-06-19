@@ -26,13 +26,14 @@ export class OKX extends BaseWallet {
   switchNetwork(network: Network): Promise<void> {
     this._network = network
     localStorage.setItem('okx_network', network)
-    this._instanceTestnet = this.instanceTestnet()
+    this._instanceTestnet = this.instanceTestnet
+    this.requestAccounts().then((accounts: any) => this.instance.emit('accountsChanged', accounts))
     return Promise.resolve()
   }
 
   get accounts() {
     return this._instanceTestnet
-      ? this._instanceTestnet.getSelectedAddress().then((result: any) => [result])
+      ? this._instanceTestnet.getSelectedAddress().then((result: any) => (result ? [result] : []))
       : this.instance.getAccounts()
   }
 
@@ -44,7 +45,7 @@ export class OKX extends BaseWallet {
 
   get publicKey() {
     return this._instanceTestnet
-      ? this._instanceTestnet.getSelectedAccount().then((result: any) => [result.publicKey])
+      ? this._instanceTestnet.getSelectedAccount().then((result: any) => [result?.publicKey])
       : this.instance.getPublicKey()
   }
 

@@ -3,6 +3,7 @@ import { customElement, state } from 'lit/decorators.js'
 import { Ref, createRef, ref } from 'lit/directives/ref.js'
 import { when } from 'lit/directives/when.js'
 import { map } from 'lit/directives/map.js'
+import { until } from 'lit/directives/until.js'
 import style from '/src/base.css?inline'
 import '@shoelace-style/shoelace/dist/components/alert/alert'
 import '@shoelace-style/shoelace/dist/components/button/button'
@@ -15,7 +16,8 @@ import '@shoelace-style/shoelace/dist/components/menu-item/menu-item'
 import { SlAlert, SlDialog } from '@shoelace-style/shoelace'
 import { getAddressInfo } from 'bitcoin-address-validation'
 import { StateController, walletState } from '../lib/walletState'
-import { WalletNames, WalletType, WalletTypes } from '../lib/wallets'
+import { Network, WalletNames, WalletType, WalletTypes } from '../lib/wallets'
+import { toast } from '../lib/toast'
 
 @customElement('connect-button')
 export class ConnectButton extends LitElement {
@@ -46,7 +48,7 @@ export class ConnectButton extends LitElement {
     this.connectingWallet = type
     try {
       const res = await walletState.connector.network
-      if (res != 'testnet') await walletState.connector.switchNetwork('testnet')
+      if (['testnet', 'signet'].indexOf(res) < 0) await walletState.connector.switchNetwork('testnet')
     } catch (e) {
       console.warn(e)
       this.alertMessage = 'Failed to switch to testnet, ' + e
@@ -71,6 +73,10 @@ export class ConnectButton extends LitElement {
     this.connectingWallet = undefined
   }
 
+  switchNetwork(network: Network) {
+    walletState.connector?.switchNetwork(network).catch((e) => toast(e))
+  }
+
   render() {
     return html`
       ${when(
@@ -81,8 +87,14 @@ export class ConnectButton extends LitElement {
               <p class="w-28 sm:w-auto truncate sm:text-clip">${walletState.address}</p>
             </sl-button>
             <sl-menu>
-              <!-- <sl-menu-item .disabled=${this.ticks}>Ticks: ${this.ticks}</sl-menu-item>
-              <sl-divider></sl-divider> -->
+              <sl-menu-item>
+                ${until(walletState.connector?.network)}
+                <sl-menu slot="submenu">
+                  <sl-menu-item @click=${this.switchNetwork.bind(this, 'testnet')}>testnet</sl-menu-item>
+                  <sl-menu-item @click=${this.switchNetwork.bind(this, 'signet')}>signet</sl-menu-item>
+                </sl-menu>
+              </sl-menu-item>
+              <sl-divider></sl-divider>
               <sl-menu-item @click=${this.disconnect.bind(this)}>
                 <sl-icon slot="prefix" name="box-arrow-right"></sl-icon>
                 Disconnect

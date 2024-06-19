@@ -2,6 +2,7 @@ import { State, property, storage } from '@lit-app/state'
 import { Balance, Wallet, WalletType } from './wallets'
 import { UniSat } from './wallets/unisat'
 import { OKX } from './wallets/okx'
+import { Leather } from './wallets/leather'
 import { getJson } from '../../lib/fetch'
 
 export { StateController, type Unsubscribe } from '@lit-app/state'
@@ -60,7 +61,8 @@ class WalletState extends State {
     this.updatePublicKey()
   }
   public async getPublicKey() {
-    return this._publicKey ?? this.updatePublicKey()
+    if (this._publicKey) return this._publicKey
+    return await this.updatePublicKey()
   }
 
   public async updatePublicKey() {
@@ -129,7 +131,10 @@ class WalletState extends State {
 
   public async updateProtocolBalance(): Promise<Balance> {
     return (this.promises['protocolBalance'] ??= Promise.all([this.getAddress(), this.getPublicKey()])
-      .then(([address, publicKey]) => fetch(`/api/protocolBalance?address=${address}&pub=${publicKey}`))
+      .then(([address, publicKey]) => {
+        if (address && publicKey) return fetch(`/api/protocolBalance?address=${address}&pub=${publicKey}`)
+        throw new Error('wallet not connected')
+      })
       .then(getJson)
       .then((balance) => (this._protocolBalance = balance))
       .finally(() => delete this.promises['protocolBalance']))
@@ -137,7 +142,10 @@ class WalletState extends State {
 
   public async updateUTXOs(): Promise<UTXO[]> {
     return (this.promises['utxos'] ??= Promise.all([this.getAddress(), this.getPublicKey()])
-      .then(([address, publicKey]) => fetch(`/api/utxo?address=${address}&pub=${publicKey}`))
+      .then(([address, publicKey]) => {
+        if (address && publicKey) return fetch(`/api/utxo?address=${address}&pub=${publicKey}`)
+        throw new Error('wallet not connected')
+      })
       .then(getJson)
       .then((utxos) => (this._utxos = utxos))
       .finally(() => delete this.promises['utxos']))
@@ -166,13 +174,16 @@ class WalletState extends State {
   }
 
   useWallet(type: WalletType) {
-    this.reset()
+    if (this._connector) this.reset()
     switch (type) {
       case 'unisat':
         this._connector = new UniSat()
         break
       case 'okx':
         this._connector = new OKX()
+        break
+      case 'leather':
+        this._connector = new Leather()
         break
       default:
         throw new Error(`unsupported wallet type: ${type}`)

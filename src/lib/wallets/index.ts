@@ -73,10 +73,11 @@ export type WalletEvent = (typeof WalletEvents)[number]
 export const Networks = ['testnet', 'livenet', 'signet'] as const
 export type Network = (typeof Networks)[number]
 
-export const WalletTypes = ['unisat', 'okx'] as const
+export const WalletTypes = ['unisat', 'okx', 'leather'] as const
 export type WalletType = (typeof WalletTypes)[number]
 
 export const WalletNames: Record<WalletType, string> = {
   unisat: 'UniSat',
-  okx: 'OKX'
+  okx: 'OKX',
+  leather: 'Leather'
 } as const

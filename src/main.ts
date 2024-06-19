@@ -78,6 +78,7 @@ export class AppMain extends LitElement {
             if (v) {
               walletState.updateBalance()
               walletState.updateProtocolBalance()
+              walletState.updateUTXOs()
             }
             break
         }
