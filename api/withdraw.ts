@@ -10,27 +10,31 @@ export default async function handler(request: VercelRequest, response: VercelRe
   try {
     const pubKey = request.query['pub'] as string
     const address = request.query['address'] as string
+    const utxo = request.query['utxo'] as string
     if (!pubKey) throw new Error('missing public key')
     if (!address) throw new Error('missing output address')
 
     const p2tr = getSupplyP2tr(pubKey)
     var value = 0
-    const utxos: [] = await fetch(`https://mempool.space/testnet/api/address/${p2tr.address}/utxo`)
-      .then(getJson)
-      .then((utxos) =>
-        utxos
-          .map((utxo: any) => {
-            console.log(utxo)
-            value += utxo.value
-            return {
-              ...p2tr,
-              txid: utxo.txid,
-              index: utxo.vout,
-              witnessUtxo: { script: p2tr.script, amount: BigInt(utxo.value) }
-            }
-          })
-          .filter((utxo: any) => utxo != undefined)
-      )
+    var utxoList
+    if (utxo != undefined) {
+      utxoList = [JSON.parse(utxo)]
+    } else {
+      utxoList = await fetch(`https://mempool.space/testnet/api/address/${p2tr.address}/utxo`).then(getJson)
+    }
+    console.log('utxo is ---->', utxo)
+    const utxos = utxoList
+      .map((utxo: any) => {
+        value += utxo.value
+        return {
+          ...p2tr,
+          txid: utxo.txid,
+          index: utxo.vout,
+          witnessUtxo: { script: p2tr.script, amount: BigInt(utxo.value) }
+        }
+      })
+      .filter((utxo: any) => utxo != undefined)
+
     const tx = new btc.Transaction()
     utxos.forEach((utxo: any) => tx.addInput(utxo))
     if (tx.inputsLength == 0) throw new Error('No UTXO can be withdrawn')

@@ -82,7 +82,7 @@ export class WithdrawPanel extends LitElement {
     if (this.balanceReleased > 0) {
       withdrawWithoutMPC([])
     } else {
-      withdrawMPC()
+      withdrawMPC(undefined)
     }
   }
 

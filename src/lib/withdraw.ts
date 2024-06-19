@@ -5,12 +5,19 @@ import { hex } from '@scure/base'
 import { scriptTLSC } from '../../lib/tlsc'
 import { toastImportant } from './toast'
 
-export function withdrawMPC() {
-  Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts]).then(
+export async function withdrawMPC(utxo: any) {
+  return Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts]).then(
     async ([publicKey, accounts]) => {
-      var res = await fetch(`/api/withdraw?pub=${publicKey}&address=${accounts?.[0]}`).then(getJson)
+      var { alert } = toastImportant(`Sending sign request to MPC nodes because of utxo's locking status.`)
+      var uri = `/api/withdraw?pub=${publicKey}&address=${accounts?.[0]}`
+      if (utxo != undefined) {
+        uri = uri + `&utxo=${encodeURI(JSON.stringify(utxo))}`
+      }
+      console.log(uri)
+      var res = await fetch(uri).then(getJson)
+      await alert.hide()
       if (!res.psbt) {
-        console.warn('withdraw tx not generated', res)
+        toastImportant('withdraw tx not generated', res)
         return
       }
       var tx = btc.Transaction.fromPSBT(hex.decode(res.psbt))

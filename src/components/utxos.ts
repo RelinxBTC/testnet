@@ -29,11 +29,12 @@ export class UtxoRow extends LitElement {
     var utxos = []
     utxos.push(this.utxo)
     if (this.utxo?.status.locked) {
-      //need to do with MPC
+      this.buttonStatus = true
+      await withdrawMPC(this.utxo)
+      this.buttonStatus = false
     } else {
       this.buttonStatus = true
       await withdrawWithoutMPC(utxos)
-      console.log('after withdraw')
       this.buttonStatus = false
     }
   }
