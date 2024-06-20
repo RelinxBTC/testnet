@@ -36,7 +36,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
     walletState.connector!.publicKey,
     walletState.connector?.accounts,
     fetch(`/api/mpcPubkey`).then(getJson),
-    fetch('https://mempool.space/${walletState.network}/api/v1/fees/recommended').then(getJson)
+    fetch(`https://mempool.space/${walletState.network}/api/v1/fees/recommended`).then(getJson)
   ])
     .then(async ([publicKey, accounts, { key: mpcPubkey }, feeRates]) => {
       const p2tr = btc.p2tr(
@@ -102,7 +102,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
           for (var i = 0; i < finalTx.inputsLength; i++) {
             console.warn(finalTx.getInput(i))
           }
-          return fetch('https://mempool.space/${walletState.network}/api/tx', {
+          return fetch(`https://mempool.space/${walletState.network}/api/tx`, {
             method: 'POST',
             body: hex.encode(finalTx.extract())
           })
