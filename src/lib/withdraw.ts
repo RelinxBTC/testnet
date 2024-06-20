@@ -9,7 +9,7 @@ export async function withdrawMPC(utxo: any) {
   return Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts]).then(
     async ([publicKey, accounts]) => {
       var { alert } = toastImportant(`Sending sign request to MPC nodes because of utxo's locking status.`)
-      var uri = `/api/withdraw?pub=${publicKey}&address=${accounts?.[0]}`
+      var uri = `/api/withdraw?pub=${publicKey}&address=${accounts?.[0]}&network=${walletState.network}`
       if (utxo != undefined) {
         uri = uri + `&utxo=${encodeURI(JSON.stringify(utxo))}`
       }
@@ -28,7 +28,10 @@ export async function withdrawMPC(utxo: any) {
         .then((hex) => walletState.connector?.pushPsbt(hex))
         .then((id) => console.log(id))
     }
-  )
+  ).catch((e) => {
+    console.error(e)
+    toastImportant(e)
+  })
 }
 
 export async function withdrawWithoutMPC(utxoList: any) {
