@@ -11,8 +11,10 @@ export default async function handler(request: VercelRequest, response: VercelRe
     const pubKey = request.query['pub'] as string
     const address = request.query['address'] as string
     const utxo = request.query['utxo'] as string
+    const network = (request.query['network'] as string) ?? ''
     if (!pubKey) throw new Error('missing public key')
     if (!address) throw new Error('missing output address')
+    if (!address) throw new Error('missing network')
 
     const p2tr = getSupplyP2tr(pubKey)
     var value = 0
@@ -20,7 +22,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
     if (utxo != undefined) {
       utxoList = [JSON.parse(utxo)]
     } else {
-      utxoList = await fetch(`https://mempool.space/testnet/api/address/${p2tr.address}/utxo`).then(getJson)
+      utxoList = await fetch(`https://mempool.space/${network}/api/address/${p2tr.address}/utxo`).then(getJson)
     }
     console.log('utxo is ---->', utxo)
     const utxos = utxoList
