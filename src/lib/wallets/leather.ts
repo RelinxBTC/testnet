@@ -1,6 +1,8 @@
 import { BaseWallet } from './base'
 import { Balance, Inscription, Network, SignPsbtOptions } from '.'
 import { getJson } from '../../../lib/fetch'
+import * as btc from '@scure/btc-signer'
+import { hex } from '@scure/base'
 
 enum WalletDefaultNetworkConfigurationIds {
   mainnet = 'mainnet',
@@ -149,7 +151,15 @@ export class Leather extends BaseWallet {
 
     return this.instance
       .request('signPsbt', requestParams)
-      .then((response: any) => response.result.hex)
+      .then((response: any) => {
+        const psbtHex = response.result.hex
+        if (options?.autoFinalized) {
+          const finalTx = btc.Transaction.fromPSBT(hex.decode(psbtHex), { allowUnknownInputs: true })
+          finalTx.finalize()
+          return hex.encode(finalTx.toPSBT())
+        }
+        return psbtHex
+      })
       .catch((e: any) => {
         throw e.error
       })
