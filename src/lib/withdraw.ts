@@ -26,7 +26,19 @@ export async function withdrawMPC(utxo: any) {
       walletState.connector
         ?.signPsbt(res.psbt, { autoFinalized: true, toSignInputs })
         .then((hex) => walletState.connector?.pushPsbt(hex))
-        .then((id) => console.log(id))
+        .then((tx) => {
+          console.log(tx)
+          toastImportant(
+            `Your transaction <a href="https://mempool.space/${walletState.network}/tx/${tx}">${tx}</a> has been sent to network.`
+          )
+          walletState.updateProtocolBalance()
+          walletState.updateBalance()
+          walletState.updateUTXOs()
+        })
+        .catch((e) => {
+          console.warn(e)
+          toast(e)
+        })
     })
     .catch((e) => {
       console.error(e)
@@ -83,7 +95,6 @@ export async function withdrawWithoutMPC(utxoList: any) {
         .then((psbtHex) => {
           const finalTx = btc.Transaction.fromPSBT(hex.decode(psbtHex), { allowUnknownInputs: true })
           finalTx.finalize()
-          for (var i = 0; i < finalTx.inputsLength; i++) console.debug(finalTx.getInput(i))
 
           const minimumFee = finalTx.vsize * feeRates.minimumFee
           const fastestFee = finalTx.vsize * feeRates.fastestFee
@@ -100,9 +111,6 @@ export async function withdrawWithoutMPC(utxoList: any) {
             .then((psbtHex) => btc.Transaction.fromPSBT(hex.decode(psbtHex)))
         })
         .then((finalTx: btc.Transaction) => {
-          for (var i = 0; i < finalTx.inputsLength; i++) {
-            console.warn(finalTx.getInput(i))
-          }
           return fetch(`https://mempool.space/${walletState.network}/api/tx`, {
             method: 'POST',
             body: hex.encode(finalTx.extract())

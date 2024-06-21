@@ -47,6 +47,8 @@ export class SupplyPanel extends LitElement {
         `Your transaction <a href="https://mempool.space/${walletState.network}/tx/${tx}">${tx}</a> has been sent to network.`
       )
       walletState.updateProtocolBalance()
+      walletState.updateBalance()
+      walletState.updateUTXOs()
       this.drawer.value?.hide()
     } catch (e) {
       console.warn(e)
