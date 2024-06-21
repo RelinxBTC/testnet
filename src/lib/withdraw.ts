@@ -3,11 +3,11 @@ import { getJson } from '../../lib/fetch'
 import * as btc from '@scure/btc-signer'
 import { hex } from '@scure/base'
 import { scriptTLSC } from '../../lib/tlsc'
-import { toastImportant } from './toast'
+import { toast, toastImportant } from './toast'
 
 export async function withdrawMPC(utxo: any) {
-  return Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts]).then(
-    async ([publicKey, accounts]) => {
+  return Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts])
+    .then(async ([publicKey, accounts]) => {
       var { alert } = toastImportant(`Sending sign request to MPC nodes because of utxo's locking status.`)
       var uri = `/api/withdraw?pub=${publicKey}&address=${accounts?.[0]}&network=${walletState.network}`
       if (utxo != undefined) {
@@ -27,11 +27,11 @@ export async function withdrawMPC(utxo: any) {
         ?.signPsbt(res.psbt, { autoFinalized: true, toSignInputs })
         .then((hex) => walletState.connector?.pushPsbt(hex))
         .then((id) => console.log(id))
-    }
-  ).catch((e) => {
-    console.error(e)
-    toastImportant(e)
-  })
+    })
+    .catch((e) => {
+      console.error(e)
+      toastImportant(e)
+    })
 }
 
 export async function withdrawWithoutMPC(utxoList: any) {
@@ -62,6 +62,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
             ...p2tr,
             txid: utxo.txid,
             index: utxo.vout,
+            sequence: 1,
             witnessUtxo: { script: p2tr.script, amount: BigInt(utxo.value) }
           }
         })
@@ -78,15 +79,12 @@ export async function withdrawWithoutMPC(utxoList: any) {
       var toSignInputs: any = []
       for (var i = 0; i < tx.inputsLength; i++) toSignInputs.push({ index: i, publicKey, disableTweakSigner: true })
       return walletState.connector
-        ?.signPsbt(hex.encode(tx.toPSBT()), {
-          autoFinalized: true,
-          toSignInputs
-        })
+        ?.signPsbt(hex.encode(tx.toPSBT()), { toSignInputs })
         .then((psbtHex) => {
-          const finalTx = btc.Transaction.fromPSBT(hex.decode(psbtHex))
-          for (var i = 0; i < finalTx.inputsLength; i++) {
-            console.warn(finalTx.getInput(i))
-          }
+          const finalTx = btc.Transaction.fromPSBT(hex.decode(psbtHex), { allowUnknownInputs: true })
+          finalTx.finalize()
+          for (var i = 0; i < finalTx.inputsLength; i++) console.debug(finalTx.getInput(i))
+
           const minimumFee = finalTx.vsize * feeRates.minimumFee
           const fastestFee = finalTx.vsize * feeRates.fastestFee
           if (minimumFee <= finalTx.fee) return finalTx
@@ -112,12 +110,24 @@ export async function withdrawWithoutMPC(utxoList: any) {
         })
         .then((res) => {
           if (res.status == 200) {
-            return res.text
+            return res.text()
           }
           return res.text().then((text) => {
             console.error(res.status, text, res)
             throw new Error(text)
           })
+        })
+        .then((tx) => {
+          toastImportant(
+            `Your transaction <a href="https://mempool.space/${walletState.network}/tx/${tx}">${tx}</a> has been sent to network.`
+          )
+          walletState.updateProtocolBalance()
+          walletState.updateBalance()
+          walletState.updateUTXOs()
+        })
+        .catch((e) => {
+          console.warn(e)
+          toast(e)
         })
     })
     .catch((e) => {
