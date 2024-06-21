@@ -37,6 +37,12 @@ export class Leather extends BaseWallet {
   private _network: Network = (localStorage.getItem('leather_network') as Network) ?? 'livenet'
   private addressesPromise: any
 
+  private get mempoolUrl() {
+    var baseUrl = 'https://mempool.space'
+    if (this._network != 'livenet') baseUrl += `/${this._network}`
+    return baseUrl
+  }
+
   protected get instance() {
     return (window as any).LeatherProvider
   }
@@ -89,12 +95,9 @@ export class Leather extends BaseWallet {
   }
 
   get balance(): Promise<Balance> {
-    var baseUrl = 'https://mempool.space'
-    if (this._network != 'livenet') baseUrl += `/${this._network}`
-
     return this.accounts
       .then((accounts: any) => {
-        if (accounts[0]) return fetch(`${baseUrl}/api/address/${accounts[0]}`)
+        if (accounts[0]) return fetch(`${this.mempoolUrl}/api/address/${accounts[0]}`)
         throw new Error('wallet not connected')
       })
       .then(getJson)
@@ -161,6 +164,7 @@ export class Leather extends BaseWallet {
         return psbtHex
       })
       .catch((e: any) => {
+        console.warn(e)
         throw e.error
       })
   }
@@ -170,9 +174,17 @@ export class Leather extends BaseWallet {
   }
 
   pushPsbt(psbtHex: string): Promise<string> {
-    const requestParams: SignPsbtRequestParams = { hex: psbtHex, signAtIndex: [], broadcast: true }
-    return this.instance.request('signPsbt', requestParams).catch((e: any) => {
-      throw e.error
+    return fetch(`${this.mempoolUrl}/api/tx`, {
+      method: 'POST',
+      body: hex.encode(btc.Transaction.fromPSBT(hex.decode(psbtHex), { allowUnknownInputs: true }).extract())
+    }).then((res) => {
+      if (res.status == 200) {
+        return res.text()
+      }
+      return res.text().then((text) => {
+        console.error(res.status, text, res)
+        throw new Error(text)
+      })
     })
   }
 }
