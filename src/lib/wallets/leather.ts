@@ -37,10 +37,16 @@ export class Leather extends BaseWallet {
   private _network: Network = (localStorage.getItem('leather_network') as Network) ?? 'livenet'
   private addressesPromise: any
 
-  private get mempoolUrl() {
-    var baseUrl = 'https://mempool.space'
-    if (this._network != 'livenet') baseUrl += `/${this._network}`
-    return baseUrl
+  private mempoolApiUrl(path: string): string {
+    if (path.startsWith('/api')) path = path.slice(4)
+    const hasVersion = path.startsWith('/v1')
+    if (hasVersion) path = path.slice(3)
+    return this._network == 'devnet'
+      ? 'http://localhost:8999/api/v1' + path
+      : 'https://mempool.space' +
+          (this._network != 'livenet' ? `/${this._network}/api` : '/api') +
+          (hasVersion ? '/v1' : '') +
+          path
   }
 
   protected get instance() {
@@ -97,7 +103,7 @@ export class Leather extends BaseWallet {
   get balance(): Promise<Balance> {
     return this.accounts
       .then((accounts: any) => {
-        if (accounts[0]) return fetch(`${this.mempoolUrl}/api/address/${accounts[0]}`)
+        if (accounts[0]) return fetch(this.mempoolApiUrl(`/api/address/${accounts[0]}`))
         throw new Error('wallet not connected')
       })
       .then(getJson)
@@ -174,7 +180,7 @@ export class Leather extends BaseWallet {
   }
 
   pushPsbt(psbtHex: string): Promise<string> {
-    return fetch(`${this.mempoolUrl}/api/tx`, {
+    return fetch(this.mempoolApiUrl('/api/tx'), {
       method: 'POST',
       body: hex.encode(btc.Transaction.fromPSBT(hex.decode(psbtHex), { allowUnknownInputs: true }).extract())
     }).then((res) => {

@@ -29,7 +29,7 @@ export async function withdrawMPC(utxo: any) {
         .then((tx) => {
           console.log(tx)
           toastImportant(
-            `Your transaction <a href="https://mempool.space/${walletState.network}/tx/${tx}">${tx}</a> has been sent to network.`
+            `Your transaction <a href="${walletState.mempoolUrl}/tx/${tx}">${tx}</a> has been sent to network.`
           )
           walletState.updateProtocolBalance()
           walletState.updateBalance()
@@ -51,7 +51,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
     walletState.connector!.publicKey,
     walletState.connector?.accounts,
     fetch(`/api/mpcPubkey`).then(getJson),
-    fetch(`https://mempool.space/${walletState.network}/api/v1/fees/recommended`).then(getJson)
+    fetch(walletState.mempoolApiUrl('/api/v1/fees/recommended')).then(getJson)
   ])
     .then(async ([publicKey, accounts, { key: mpcPubkey }, feeRates]) => {
       const p2tr = btc.p2tr(
@@ -62,9 +62,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
       )
       var value = 0
       if (utxoList.length == 0) {
-        utxoList = await fetch(`https://mempool.space/${walletState.network}/api/address/${p2tr.address}/utxo`).then(
-          getJson
-        )
+        utxoList = await fetch(walletState.mempoolApiUrl(`/api/address/${p2tr.address}/utxo`)).then(getJson)
       }
       const utxos = utxoList
         .map((utxo: any) => {
@@ -94,7 +92,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
         ?.signPsbt(hex.encode(tx.toPSBT()), { toSignInputs })
         .then((psbtHex) => {
           const finalTx = btc.Transaction.fromPSBT(hex.decode(psbtHex), { allowUnknownInputs: true })
-          finalTx.finalize()
+          if (!finalTx.isFinal) finalTx.finalize()
 
           const minimumFee = finalTx.vsize * feeRates.minimumFee
           const fastestFee = finalTx.vsize * feeRates.fastestFee
@@ -111,7 +109,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
             .then((psbtHex) => btc.Transaction.fromPSBT(hex.decode(psbtHex)))
         })
         .then((finalTx: btc.Transaction) => {
-          return fetch(`https://mempool.space/${walletState.network}/api/tx`, {
+          return fetch(walletState.mempoolApiUrl('/api/tx'), {
             method: 'POST',
             body: hex.encode(finalTx.extract())
           })
@@ -127,7 +125,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
         })
         .then((tx) => {
           toastImportant(
-            `Your transaction <a href="https://mempool.space/${walletState.network}/tx/${tx}">${tx}</a> has been sent to network.`
+            `Your transaction <a href="${walletState.mempoolUrl}/tx/${tx}">${tx}</a> has been sent to network.`
           )
           walletState.updateProtocolBalance()
           walletState.updateBalance()

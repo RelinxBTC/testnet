@@ -1,0 +1,112 @@
+version: '3.7'
+name: devnet
+
+volumes:
+  bitcoin-data:
+  mysql-data:
+  mempool-api-cache:
+  electrs-data:
+
+services:
+  bitcoind:
+    image: ruimarinho/bitcoin-core:latest
+    container_name: bitcoind
+    restart: on-failure
+    stop_grace_period: 1m
+    command: '-printtoconsole -regtest=1 -txindex=1 -server=1 -rpcallowip=0.0.0.0/0 -rpcbind=0.0.0.0 -rpcuser=devnet -rpcpassword=devnet'
+    volumes:
+      - bitcoin-data:/home/bitcoin/.bitcoin
+  esplora-api:
+    image: bitlightlabs/esplora-api:latest
+    depends_on:
+      - bitcoind
+    command: "-vvvv --network regtest --daemon-dir /data/.bitcoin --cookie='devnet:devnet' --daemon-rpc-addr bitcoind:18443 --cors '*' --http-addr '0.0.0.0:18443' --electrum-rpc-addr 0.0.0.0:60401"
+    volumes:
+      - bitcoin-data:/data/.bitcoin
+    ports:
+      - '18443:18443'
+      - '60401:60401'
+  electrs-init:
+    image: getumbrel/electrs:v0.10.2
+    restart: 'no'
+    entrypoint: /bin/sh
+    volumes:
+      - electrs-data:/data
+    command:
+      - -c
+      - |
+        echo "Initializing electrs configuration"
+        echo 'auth = "devnet:devnet"' > /data/electrs.toml
+        echo "Completed electrs configuration"
+  electrs:
+    image: getumbrel/electrs:v0.10.2
+    restart: on-failure
+    stop_grace_period: 5s
+    environment:
+      ELECTRS_LOG_FILTERS: 'INFO'
+      ELECTRS_NETWORK: 'regtest'
+      ELECTRS_DAEMON_RPC_ADDR: 'bitcoind:18443'
+      ELECTRS_DAEMON_P2P_ADDR: 'bitcoind:18444'
+      ELECTRS_ELECTRUM_RPC_ADDR: '0.0.0.0:60401'
+    command: '--conf /data/electrs.toml'
+    depends_on:
+      - bitcoind
+      - electrs-init
+    volumes:
+      - electrs-data:/data
+  mempool-api:
+    environment:
+      # MEMPOOL_BACKEND: 'esplora'
+      # ESPLORA_REST_API_URL: 'http://esplora-api:18443'
+      MEMPOOL_BACKEND: 'electrum'
+      ELECTRUM_HOST: 'electrs'
+      ELECTRUM_PORT: '60401'
+      ELECTRUM_TLS_ENABLED: 'false'
+      CORE_RPC_HOST: 'bitcoind'
+      CORE_RPC_PORT: '18443'
+      CORE_RPC_USERNAME: 'devnet'
+      CORE_RPC_PASSWORD: 'devnet'
+      DATABASE_ENABLED: 'true'
+      DATABASE_HOST: 'db'
+      DATABASE_DATABASE: 'mempool'
+      DATABASE_USERNAME: 'mempool'
+      DATABASE_PASSWORD: 'mempool'
+      STATISTICS_ENABLED: 'true'
+    image: mempool/backend:latest
+    user: '1000:1000'
+    restart: on-failure
+    stop_grace_period: 5s
+    command: './wait-for-it.sh db:3306 --timeout=720 --strict -- ./start.sh'
+    ports:
+      - 8999:8999
+    depends_on:
+      - bitcoind
+      - electrs
+      - db
+    volumes:
+      - mempool-api-cache:/backend/cache
+  mempool-web:
+    environment:
+      FRONTEND_HTTP_PORT: '8083'
+      BACKEND_MAINNET_HTTP_HOST: 'mempool-api'
+    image: mempool/frontend:latest
+    user: '1000:1000'
+    restart: on-failure
+    stop_grace_period: 5s
+    depends_on:
+      - mempool-api
+    command: "./wait-for db:3306 --timeout=720 -- nginx -g 'daemon off;'"
+    ports:
+      - 8083:8083
+  db:
+    environment:
+      MYSQL_DATABASE: 'mempool'
+      MYSQL_USER: 'mempool'
+      MYSQL_PASSWORD: 'mempool'
+      MYSQL_ROOT_PASSWORD: 'admin'
+    image: mariadb:10.5.21
+    # user: '1000:1000'
+    restart: on-failure
+    stop_grace_period: 1m
+    volumes:
+      - mysql-data:/var/lib/mysql

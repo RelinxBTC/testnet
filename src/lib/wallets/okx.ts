@@ -24,6 +24,8 @@ export class OKX extends BaseWallet {
   }
 
   switchNetwork(network: Network): Promise<void> {
+    if (!['livenet', 'testnet', 'signet'].includes(network))
+      return Promise.reject(new Error(`${network} not supported`))
     this._network = network
     localStorage.setItem('okx_network', network)
     this._instanceTestnet = this.instanceTestnet
@@ -45,7 +47,7 @@ export class OKX extends BaseWallet {
 
   get publicKey() {
     return this._instanceTestnet
-      ? this._instanceTestnet.getSelectedAccount().then((result: any) => [result?.publicKey])
+      ? this._instanceTestnet.getSelectedAccount().then((result: any) => result?.publicKey)
       : this.instance.getPublicKey()
   }
 

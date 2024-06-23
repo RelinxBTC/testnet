@@ -47,7 +47,7 @@ export class ConnectButton extends LitElement {
     this.connectingWallet = type
     try {
       const res = await walletState.connector.network
-      if (['testnet', 'signet'].indexOf(res) < 0) await walletState.connector.switchNetwork('testnet')
+      if (res == 'livenet') await walletState.connector.switchNetwork('testnet')
     } catch (e) {
       console.warn(e)
       this.alertMessage = 'Failed to switch to testnet, ' + e
@@ -59,7 +59,7 @@ export class ConnectButton extends LitElement {
       let result = await walletState.connector.accounts
       if (!Array.isArray(result) || result.length == 0) result = await walletState.connector.requestAccounts()
       const info = getAddressInfo(result[0])
-      if (info.network != 'testnet') {
+      if (info.network == 'mainnet') {
         throw new Error(`${result[0]} is not a testnet address`)
       }
       walletState.wallet = type
@@ -91,6 +91,7 @@ export class ConnectButton extends LitElement {
                 <sl-menu slot="submenu">
                   <sl-menu-item @click=${this.switchNetwork.bind(this, 'testnet')}>testnet</sl-menu-item>
                   <sl-menu-item @click=${this.switchNetwork.bind(this, 'signet')}>signet</sl-menu-item>
+                  <sl-menu-item @click=${this.switchNetwork.bind(this, 'devnet')}>devnet</sl-menu-item>
                 </sl-menu>
               </sl-menu-item>
               <sl-divider></sl-divider>

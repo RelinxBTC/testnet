@@ -44,7 +44,7 @@ export class SupplyPanel extends LitElement {
       console.log(addr, this.input.value!.valueAsNumber * 1e8)
       const tx = await walletState.connector!.sendBitcoin(addr, this.input.value!.valueAsNumber * 1e8)
       toastImportant(
-        `Your transaction <a href="https://mempool.space/${walletState.network}/tx/${tx}">${tx}</a> has been sent to network.`
+        `Your transaction <a href="${walletState.mempoolUrl}/tx/${tx}">${tx}</a> has been sent to network.`
       )
       walletState.updateProtocolBalance()
       walletState.updateBalance()

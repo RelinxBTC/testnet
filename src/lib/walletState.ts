@@ -4,6 +4,10 @@ import { UniSat } from './wallets/unisat'
 import { OKX } from './wallets/okx'
 import { Leather } from './wallets/leather'
 import { getJson } from '../../lib/fetch'
+import * as btc from '@scure/btc-signer'
+import { scriptTLSC } from '../../lib/tlsc'
+import { btcNetwork } from '../../lib/network'
+import { hex } from '@scure/base'
 
 export { StateController, type Unsubscribe } from '@lit-app/state'
 
@@ -55,8 +59,8 @@ class WalletState extends State {
   }
 
   // ---- network ----
-  @property() private _network?: string
-  public get network(): string | undefined {
+  @property() private _network?: Network
+  public get network(): Network | undefined {
     if (this._network) return this._network
     this.updateNetwork()
   }
@@ -74,6 +78,22 @@ class WalletState extends State {
   public switchNetwork(network: Network) {
     this.connector?.switchNetwork(network)
     this.updateNetwork()
+  }
+
+  public mempoolApiUrl(path: string): string {
+    if (path.startsWith('/api')) path = path.slice(4)
+    const hasVersion = path.startsWith('/v1')
+    if (hasVersion) path = path.slice(3)
+    return this._network == 'devnet'
+      ? 'http://localhost:8999/api/v1' + path
+      : 'https://mempool.space' +
+          (this._network != 'livenet' ? `/${this._network}/api` : '/api') +
+          (hasVersion ? '/v1' : '') +
+          path
+  }
+  public get mempoolUrl(): string {
+    if (this._network == 'devnet') return 'http://localhost:8083'
+    return 'https://mempool.space' + (this._network != 'livenet' ? `/${this._network}` : '')
   }
 
   // ---- public key ----
@@ -105,10 +125,19 @@ class WalletState extends State {
   }
 
   public async updateDepositAddress() {
-    return (this.promises['depositAddress'] ??= this.getPublicKey()
-      .then((publicKey) => fetch(`/api/depositAddress?pub=${publicKey}`))
-      .then(getJson)
-      .then((js) => js.address)
+    return (this.promises['depositAddress'] ??= Promise.all([
+      this.getPublicKey(),
+      fetch('/api/mpcPubkey').then(getJson)
+    ])
+      .then(
+        ([publicKey, { key: mpcPubkey }]) =>
+          btc.p2tr(
+            undefined,
+            { script: scriptTLSC(hex.decode(mpcPubkey), hex.decode(publicKey)) },
+            btcNetwork(this._network),
+            true
+          ).address
+      )
       .finally(() => delete this.promises['depositAddress']))
   }
 
@@ -163,10 +192,9 @@ class WalletState extends State {
   }
 
   public async updateUTXOs(): Promise<UTXO[]> {
-    return (this.promises['utxos'] ??= Promise.all([this.getAddress(), this.getPublicKey()])
-      .then(([address, publicKey]) => {
-        if (address && publicKey)
-          return fetch(`/api/utxo?address=${address}&pub=${publicKey}&network=${walletState.network}`)
+    return (this.promises['utxos'] ??= Promise.all([this.getAddress(), this.getPublicKey(), this.getNetwork()])
+      .then(([address, publicKey, network]) => {
+        if (address && publicKey) return fetch(`/api/utxo?address=${address}&pub=${publicKey}&network=${network}`)
         throw new Error('wallet not connected')
       })
       .then(getJson)

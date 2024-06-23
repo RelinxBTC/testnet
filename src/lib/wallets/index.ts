@@ -1,6 +1,5 @@
-import { type Balance } from '../../../lib/types'
-
-export { type Balance } from '../../../lib/types'
+import { type Balance, type Network } from '../../../lib/types'
+export { type Balance, type Network } from '../../../lib/types'
 
 export interface Wallet {
   installed: boolean
@@ -69,9 +68,6 @@ export type SignPsbtOptions = {
 
 export const WalletEvents = ['accountsChanged', 'networkChanged'] as const
 export type WalletEvent = (typeof WalletEvents)[number]
-
-export const Networks = ['testnet', 'livenet', 'signet'] as const
-export type Network = (typeof Networks)[number]
 
 export const WalletTypes = ['unisat', 'okx', 'leather'] as const
 export type WalletType = (typeof WalletTypes)[number]
