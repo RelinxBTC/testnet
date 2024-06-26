@@ -116,7 +116,7 @@ export class WithdrawPanel extends LitElement {
                   this.input.value!.value = this.inputValue.toString()
                 }}
                 pill
-                >Max Released</sl-button
+                >Max Unlocked</sl-button
               >`
           )}
           ${when(
@@ -144,7 +144,7 @@ export class WithdrawPanel extends LitElement {
           (${Math.floor(this.balanceReleased / 1e8)}.${Math.floor((this.balanceReleased % 1e8) / 1e4)
             .toString()
             .padStart(4, '0')}
-          Released)
+          Unlocked)
         </div>
 
         <div class="mt-4 flex space-x-4">
