@@ -181,9 +181,14 @@ class WalletState extends State {
   }
 
   public async updateProtocolBalance(): Promise<Balance> {
-    return (this.promises['protocolBalance'] ??= Promise.all([this.getAddress(), this.getPublicKey()])
-      .then(([address, publicKey]) => {
-        if (address && publicKey) return fetch(`/api/protocolBalance?address=${address}&pub=${publicKey}`)
+    return (this.promises['protocolBalance'] ??= Promise.all([
+      this.getAddress(),
+      this.getPublicKey(),
+      this.getNetwork()
+    ])
+      .then(([address, publicKey, network]) => {
+        if (address && publicKey)
+          return fetch(`/api/protocolBalance?address=${address}&pub=${publicKey}&network=${network}`)
         throw new Error('wallet not connected')
       })
       .then(getJson)
