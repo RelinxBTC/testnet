@@ -50,7 +50,7 @@ function parseTxs(txs: Tx[], address: string, protocolAddress: string): number {
 export async function protocolBalance(address: string, userKey: string): Promise<Balance> {
   const {
     bitcoin: { addresses }
-  } = mempool()
+  } = mempool('testnet')
   const { api } = makeBitcoinAPI({ hostname: 'mempool.space', network: 'testnet' })
 
   const protocolAddress = getSupplyP2tr(userKey).address!

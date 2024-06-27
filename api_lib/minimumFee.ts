@@ -3,7 +3,7 @@ import { mempool } from './mempool.js'
 export async function minimumFee(vsize: number): Promise<number> {
   const {
     bitcoin: { fees }
-  } = mempool()
+  } = mempool('testnet')
 
   const { fastestFee, minimumFee } = await fees.getFeesRecommended()
 

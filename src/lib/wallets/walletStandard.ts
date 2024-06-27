@@ -105,7 +105,7 @@ export class WalletStandard extends BaseWallet {
       })
   }
 
-  on(event: WalletEvent, handler: (accounts: Array<string>) => void) {
+  on(_event: WalletEvent, _handler: (accounts: Array<string>) => void) {
     console.warn(`${this._wallet.name} does not support event listening`)
   }
 
@@ -128,11 +128,11 @@ export class WalletStandard extends BaseWallet {
     )
   }
 
-  getInscriptions(cursor?: number, size?: number): Promise<{ total: number; list: Inscription[] }> {
+  getInscriptions(_cursor?: number, _size?: number): Promise<{ total: number; list: Inscription[] }> {
     throw new Error('not implemented')
   }
 
-  sendInscription(toAddress: string, inscriptionId: string, options?: { feeRate: number }): Promise<string> {
+  sendInscription(_toAddress: string, _inscriptionId: string, _options?: { feeRate: number }): Promise<string> {
     throw new Error('not implemented')
   }
 
