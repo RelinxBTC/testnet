@@ -3,6 +3,7 @@ import { Balance, Network, Wallet, WalletType } from './wallets'
 import { UniSat } from './wallets/unisat'
 import { OKX } from './wallets/okx'
 import { Leather } from './wallets/leather'
+import { WalletStandard } from './wallets/walletStandard'
 import { getJson } from '../../lib/fetch'
 import * as btc from '@scure/btc-signer'
 import { scriptTLSC } from '../../lib/tlsc'
@@ -237,7 +238,8 @@ class WalletState extends State {
         this._connector = new Leather()
         break
       default:
-        throw new Error(`unsupported wallet type: ${type}`)
+        this._connector = new WalletStandard(type)
+        if (!this._connector) throw new Error(`unsupported wallet type: ${type}`)
     }
     if (this._connector.installed) this._connector.on('accountsChanged', this.onAccountChanged)
   }

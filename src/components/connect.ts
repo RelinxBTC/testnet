@@ -17,6 +17,7 @@ import { getAddressInfo } from 'bitcoin-address-validation'
 import { StateController, walletState } from '../lib/walletState'
 import { Network, WalletNames, WalletType, WalletTypes } from '../lib/wallets'
 import { toast } from '../lib/toast'
+import { Wallets } from '../lib/wallets/walletStandard'
 
 @customElement('connect-button')
 export class ConnectButton extends LitElement {
@@ -120,6 +121,17 @@ export class ConnectButton extends LitElement {
                     ${WalletNames[type]}
                   </sl-button>`
               )}
+              ${map(Wallets(), (wallet) => {
+                return html`<sl-button
+                  class="w-full"
+                  .disabled=${this.connectingWallet}
+                  .loading=${this.connectingWallet == wallet.name}
+                  @click=${() => this.connect(wallet.name)}
+                >
+                  <sl-icon slot="prefix" src="${wallet.icon}"></sl-icon>
+                  ${wallet.name}
+                </sl-button>`
+              })}
             </div>
           </sl-dialog>
         `

@@ -3,6 +3,7 @@ import { Balance, Inscription, Network, SignPsbtOptions } from '.'
 import { getJson } from '../../../lib/fetch'
 import * as btc from '@scure/btc-signer'
 import { hex } from '@scure/base'
+import { mempoolApiUrl } from './utils'
 
 enum WalletDefaultNetworkConfigurationIds {
   mainnet = 'mainnet',
@@ -38,15 +39,7 @@ export class Leather extends BaseWallet {
   private addressesPromise: any
 
   private mempoolApiUrl(path: string): string {
-    if (path.startsWith('/api')) path = path.slice(4)
-    const hasVersion = path.startsWith('/v1')
-    if (hasVersion) path = path.slice(3)
-    return this._network == 'devnet'
-      ? 'http://localhost:8999/api/v1' + path
-      : 'https://mempool.space' +
-          (this._network != 'livenet' ? `/${this._network}/api` : '/api') +
-          (hasVersion ? '/v1' : '') +
-          path
+    return mempoolApiUrl(path, this._network)
   }
 
   protected get instance() {

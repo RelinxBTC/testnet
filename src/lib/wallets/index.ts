@@ -1,6 +1,13 @@
 import { type Balance, type Network } from '../../../lib/types'
 export { type Balance, type Network } from '../../../lib/types'
 
+export const WalletTypes = ['unisat', 'okx', 'leather'] as const
+export const WalletNames: Record<WalletType, string> = {
+  unisat: 'UniSat',
+  okx: 'OKX',
+  leather: 'Leather'
+} as const
+
 export interface Wallet {
   installed: boolean
   network: Promise<Network>
@@ -69,11 +76,4 @@ export type SignPsbtOptions = {
 export const WalletEvents = ['accountsChanged', 'networkChanged'] as const
 export type WalletEvent = (typeof WalletEvents)[number]
 
-export const WalletTypes = ['unisat', 'okx', 'leather'] as const
-export type WalletType = (typeof WalletTypes)[number]
-
-export const WalletNames: Record<WalletType, string> = {
-  unisat: 'UniSat',
-  okx: 'OKX',
-  leather: 'Leather'
-} as const
+export type WalletType = (typeof WalletTypes)[number] | string
