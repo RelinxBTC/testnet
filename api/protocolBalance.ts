@@ -6,16 +6,19 @@ import { Balance } from '../lib/types.js'
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
   const pubKey = request.query['pub'] as string
+  const network = request.query['network'] as string
   if (!pubKey) throw new Error('missing public key')
+  if (!network) throw new Error('missing network')
 
   // if (request.query['address'])
   //   return response.status(200).send(await protocolBalance(request.query['address'] as string, pubKey))
 
   const {
     bitcoin: { addresses }
-  } = mempool()
+  } = mempool(network)
 
   const protocolAddress = await addresses.getAddress({ address: getSupplyP2tr(pubKey).address! })
+  console.log('protocol address: ' + JSON.stringify(protocolAddress))
   const unconfirmed = protocolAddress.mempool_stats.funded_txo_sum - protocolAddress.mempool_stats.spent_txo_sum
   const confirmed = protocolAddress.chain_stats.funded_txo_sum - protocolAddress.chain_stats.spent_txo_sum
   const balance: Balance = { unconfirmed, confirmed, total: unconfirmed + confirmed }

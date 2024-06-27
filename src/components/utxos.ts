@@ -115,7 +115,7 @@ export class UtxoRow extends LitElement {
         ${when(
           !this.buttonStatus,
           () =>
-            html`<sl-button class="supply" variant="success" @click=${() => this.withdraw()} pill>
+            html`<sl-button class="supply" variant="success" @click=${() => this.withdraw()} pill ?disabled=${!this.utxo?.status.confirmed}>
               Withdraw
             </sl-button>`
         )}

@@ -94,6 +94,10 @@ export class AppMain extends LitElement {
     this.stateUnsubscribes = []
   }
 
+  get balanceUnconfirmed() {
+    return walletState.balance?.unconfirmed ?? 0
+  }
+
   async updateProtocolUtxos() {
     while (true) {
       await walletState.updateUTXOs().catch((e) => console.log(`failed to update utxo list, error:`, e))
@@ -212,6 +216,14 @@ export class AppMain extends LitElement {
                   .padStart(4, '0')}</span
               >
             </div>
+            ${when(
+              this.balanceUnconfirmed != 0,
+              () =>
+                html`<div class="flex text-xs items-center text-sl-neutral-600">
+                  ${formatUnits(Math.abs(this.balanceUnconfirmed), 8) + ' Unconfirmed'}
+                </div>`
+            )}
+
             <sl-divider class="my-8"></sl-divider>
             <div class="flex">
               <div class="flex-1">
