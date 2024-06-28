@@ -5,6 +5,6 @@ export function mempoolApiUrl(path: string, network?: Network): string {
   const hasVersion = path.startsWith('/v1')
   if (hasVersion) path = path.slice(3)
   return network == 'devnet'
-    ? 'http://localhost:8999/api/v1' + path
+    ? 'http://localhost:18443' + path
     : 'https://mempool.space' + (network != 'livenet' ? `/${network}/api` : '/api') + (hasVersion ? '/v1' : '') + path
 }

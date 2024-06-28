@@ -4,6 +4,8 @@ import { getJson } from '../../../lib/fetch'
 import * as btc from '@scure/btc-signer'
 import { hex } from '@scure/base'
 import { mempoolApiUrl } from './utils'
+import { btcNetwork } from '../../../lib/network'
+import { AddressType, getAddressInfo } from 'bitcoin-address-validation'
 
 enum WalletDefaultNetworkConfigurationIds {
   mainnet = 'mainnet',
@@ -123,6 +125,79 @@ export class Leather extends BaseWallet {
 
   sendBitcoin(toAddress: string, satoshis: number, options?: { feeRate: number }): Promise<string> {
     if (options?.feeRate) console.warn('feeRate not supported in Leather')
+    // workaround for devnet as https://github.com/leather-io/extension/issues/4874
+    if (this._network == 'devnet') {
+      var account: any
+      var p2ret: any
+      return Promise.all([this.accounts, this.publicKey])
+        .then(([accounts, pubKeyStr]) => {
+          const { type } = getAddressInfo(accounts[0])
+          const pubKey = hex.decode(pubKeyStr)
+          switch (type) {
+            case AddressType.p2wpkh:
+              p2ret = btc.p2wpkh(pubKey, btcNetwork('devnet'))
+              break
+            case AddressType.p2pkh:
+              p2ret = btc.p2pkh(pubKey, btcNetwork('devnet'))
+              break
+            default:
+              throw new Error(`${type} is not implemented in sendBitcoin`)
+          }
+          if (accounts[0]) {
+            account = accounts[0]
+            return fetch(this.mempoolApiUrl(`/api/address/${accounts[0]}/utxo`)).then(getJson)
+          }
+          throw new Error('wallet not connected')
+        })
+        .then(
+          async (utxos) =>
+            await Promise.all(
+              utxos.map(async (utxo: any) => {
+                return {
+                  ...p2ret,
+                  txid: utxo.txid,
+                  index: utxo.vout,
+                  nonWitnessUtxo: (p2ret.type as string).startsWith('w')
+                    ? undefined
+                    : await fetch(this.mempoolApiUrl(`/api/tx/${utxo.txid}/hex`)),
+                  witnessUtxo: (p2ret.type as string).startsWith('w')
+                    ? { script: p2ret.script, amount: BigInt(utxo.value) }
+                    : undefined
+                }
+              })
+            )
+        )
+        .then((utxos) =>
+          btc.selectUTXO(utxos, [{ address: toAddress, amount: BigInt(satoshis) }], 'default', {
+            changeAddress: account, // required, address to send change
+            feePerByte: BigInt(options?.feeRate ?? 1), // require, fee per vbyte in satoshi
+            bip69: true, // lexicographical Indexing of Transaction Inputs and Outputs
+            createTx: true, // create tx with selected inputs/outputs
+            network: btcNetwork('devnet')
+          })
+        )
+        .then((selected) => {
+          if (!selected) throw new Error('not enough fund')
+          return this.instance
+            .request('signPsbt', {
+              hex: hex.encode(selected!.tx!.toPSBT()),
+              network: 'devnet',
+              broadcast: true
+            })
+            .then((response: any) => {
+              console.debug('signPsbt returns', response)
+              const txid = response.result.txid
+              if (txid) return txid
+              const finalTx = btc.Transaction.fromPSBT(hex.decode(response.result.hex), { allowUnknownInputs: true })
+              finalTx.finalize()
+              return finalTx.id
+            })
+            .catch((e: any) => {
+              console.warn(e)
+              throw e.error
+            })
+        })
+    }
     return this.instance
       .request('sendTransfer', {
         recipients: [
