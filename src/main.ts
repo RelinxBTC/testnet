@@ -193,7 +193,7 @@ export class AppMain extends LitElement {
         <div class="col-span-7">
           <div class="relative panel !rounded-none">
             <ul>
-              <li class="text-xs mb-3">Deposits</li>
+              <li class="text-xs mb-3">${this.utxos?.length} Deposits</li>
               ${when(this.utxos == undefined, () => html` <sl-progress-bar indeterminate></sl-progress-bar> `)}
               ${when(
                 this.utxos != undefined && this.utxos.length == 0,

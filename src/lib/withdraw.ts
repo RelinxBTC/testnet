@@ -9,7 +9,7 @@ import { btcNetwork } from '../../lib/network'
 export async function withdrawMPC(utxo: any) {
   return Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts])
     .then(async ([publicKey, accounts]) => {
-      var { alert } = toastImportant(`Sending sign request to MPC nodes because of utxo's locking status.`)
+      var { alert } = toastImportant('Getting signature from MPC nodes.')
       var uri = `/api/withdraw?pub=${publicKey}&address=${accounts?.[0]}&network=${walletState.network}`
       if (utxo != undefined) {
         uri = uri + `&utxo=${encodeURI(JSON.stringify(utxo))}`
@@ -49,12 +49,14 @@ export async function withdrawMPC(utxo: any) {
 
 export async function withdrawWithoutMPC(utxoList: any) {
   return Promise.all([
-    walletState.connector!.publicKey,
+    walletState.getPublicKey(),
     walletState.connector?.accounts,
-    fetch(`/api/mpcPubkey`).then(getJson),
-    fetch(walletState.mempoolApiUrl('/api/v1/fees/recommended')).then(getJson)
+    walletState.getMpcPublicKey(),
+    walletState.network == 'devnet'
+      ? { minimumFee: 1, fastestFee: 1 }
+      : fetch(walletState.mempoolApiUrl('/api/v1/fees/recommended')).then(getJson)
   ])
-    .then(async ([publicKey, accounts, { key: mpcPubkey }, feeRates]) => {
+    .then(async ([publicKey, accounts, mpcPubkey, feeRates]) => {
       const p2tr = btc.p2tr(
         undefined,
         { script: scriptTLSC(hex.decode(mpcPubkey), hex.decode(publicKey)) },
@@ -67,7 +69,6 @@ export async function withdrawWithoutMPC(utxoList: any) {
       }
       const utxos = utxoList
         .map((utxo: any) => {
-          if (!utxo.status.confirmed) return undefined // unconfirmed utxo can not be withdraw without MPC
           value += utxo.value
           return {
             ...p2tr,
@@ -121,6 +122,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
           }
           return res.text().then((text) => {
             console.error(res.status, text, res)
+            if (text.includes('non-BIP68-final')) text += ', timelock not passed'
             throw new Error(text)
           })
         })

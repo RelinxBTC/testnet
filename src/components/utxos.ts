@@ -1,6 +1,7 @@
 import '@shoelace-style/shoelace/dist/components/button/button'
 import '@shoelace-style/shoelace/dist/components/drawer/drawer'
 import '@shoelace-style/shoelace/dist/components/input/input'
+import '@shoelace-style/shoelace/dist/components/button-group/button-group'
 import { LitElement, html, unsafeCSS } from 'lit'
 import { customElement, property } from 'lit/decorators.js'
 import { when } from 'lit/directives/when.js'
@@ -67,20 +68,28 @@ export class UtxoRow extends LitElement {
 
   render() {
     return html`
-      <div class="ml-1 flex-auto text-s">
+      <div class="ml-1 text-s">
+        ${when(
+          this.utxo?.status.confirmed,
+          () =>
+            html` <span class="text-s my-1 items-center" style="color: #417505;" alt="Confirmed">
+              <sl-tooltip content="Confirmed"><sl-icon outline name="check-circle"></sl-icon></sl-tooltip>
+            </span>`,
+          () =>
+            html` <span class="text-s my-1 items-center" style="color: red;" alt="Unconfirmed">
+              <sl-tooltip content="Unconfirmed"><sl-icon outline name="record-circle"></sl-icon></sl-tooltip>
+            </span>`
+        )}
         ${when(
           this.utxo?.status.locked,
           () =>
-            html` <div class="flex text-s my-1 items-center" style="color: red;" alt="Locked">
-              <sl-icon outline name="lock"></sl-icon>
-            </div>`
-        )}
-        ${when(
-          !this.utxo?.status.locked,
+            html` <span class="text-s my-1 items-center" style="color: red;" alt="Locked">
+              <sl-tooltip content="Locked"><sl-icon outline name="lock"></sl-icon></sl-tooltip>
+            </span>`,
           () =>
-            html` <div class="flex text-s my-1 items-center" style="color: #417505;" alt="Unlocked">
-              <sl-icon outline name="unlock"></sl-icon>
-            </div>`
+            html` <span class="text-s my-1 items-center" style="color: #417505;" alt="Unlocked">
+              <sl-tooltip content="Unlocked"><sl-icon outline name="unlock"></sl-icon></sl-tooltip>
+            </span>`
         )}
       </div>
       <div class="ml-3 flex-auto text-xl">
@@ -89,40 +98,26 @@ export class UtxoRow extends LitElement {
           <span class="text-sl-neutral-600">${formatUnits(Math.abs(this.utxo?.value ?? 0), 8)}</span>
         </div>
       </div>
+      <div class="ml-3 flex-auto w-20 text-xs">${this.getElapsedTime()}</div>
       <div class="ml-3 flex-auto text-s">
-        ${when(
-          this.utxo?.status.confirmed,
-          () =>
-            html` <div class="flex text-s my-1 items-center" style="color: #417505;">
-              <sl-icon outline name="check-circle"></sl-icon> Confirmed
-            </div>`
-        )}
-        ${when(
-          !this.utxo?.status.confirmed,
-          () =>
-            html` <div class="flex text-s my-1 items-center" style="color: red;">
-              <sl-icon outline name="record-circle"></sl-icon> Unconfirmed
-            </div>`
-        )}
-      </div>
-      <div class="ml-3 flex-auto text-s">${this.getElapsedTime()}</div>
-      <div class="ml-3 flex-auto text-s">
-        <a href="${walletState.mempoolUrl}/tx/${this.utxo?.txid}" _target="blank" alt="Check Transaction Details"
-          ><sl-icon outline name="box-arrow-up-right"></sl-icon
-        ></a>
+        <sl-tooltip content="Check Transaction Details">
+          <a href="${walletState.mempoolUrl}/tx/${this.utxo?.txid}" _target="blank" alt="Check Transaction Details">
+            <sl-icon outline name="box-arrow-up-right"></sl-icon>
+          </a>
+        </sl-tooltip>
       </div>
       <div class="ml-3 flex-auto text-s">
-        ${when(
-          !this.buttonStatus,
-          () =>
-            html`<sl-button class="supply" variant="success" @click=${() => this.withdraw()} pill ?disabled=${!this.utxo?.status.confirmed}>
-              Withdraw
-            </sl-button>`
-        )}
-        ${when(
-          this.buttonStatus,
-          () => html`<sl-button class="supply" variant="success" pill loading>Default</sl-button>`
-        )}
+        <sl-button-group>
+          <sl-button variant="success" outline disabled size="small"
+            ><sl-icon slot="prefix" name="dash-circle"></sl-icon>Withdraw</sl-button
+          >
+          <sl-tooltip content="Withdraw with MPC signature">
+            <sl-button size="small" variant="success" @click=${() => withdrawMPC(this.utxo)}>MPC</sl-button>
+          </sl-tooltip>
+          <sl-tooltip content="Withdraw without MPC signature">
+            <sl-button size="small" variant="success" @click=${() => withdrawWithoutMPC([this.utxo])}>Self</sl-button>
+          </sl-tooltip>
+        </sl-button-group>
       </div>
     `
   }
