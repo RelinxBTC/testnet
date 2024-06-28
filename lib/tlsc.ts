@@ -6,6 +6,8 @@ import { Script } from '@scure/btc-signer'
  * passed, or with 2/2 multisig from user&MPC.
  */
 export function scriptTLSC(mpcKey: Uint8Array, userKey: Uint8Array): Uint8Array {
+  if (!userKey.length) throw new Error('user key is empty')
+  if (!mpcKey.length) throw new Error('mpc key is empty')
   return Script.encode([
     'DEPTH', // push stack depth
     '1SUB', // sub 1

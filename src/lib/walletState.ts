@@ -137,11 +137,12 @@ class WalletState extends State {
   }
 
   public async updateDepositAddress() {
-    return (this.promises['depositAddress'] ??= Promise.all([
-      this.getPublicKey(),
-      this.getMpcPublicKey(),
-      this.getNetwork()
-    ])
+    return (this.promises['depositAddress'] ??= this.getPublicKey()
+      .then((pubKey) =>
+        pubKey
+          ? Promise.all([pubKey, this.getMpcPublicKey(), this.getNetwork()])
+          : Promise.reject('wallet not connected')
+      )
       .then(
         ([publicKey, mpcPubkey, network]) =>
           btc.p2tr(
