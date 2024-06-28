@@ -75,6 +75,7 @@ export class AppMain extends LitElement {
             this.utxos = v
             break
           case '_address':
+          case '_network':
             if (v) {
               this.walletBalance = 0
               walletState.updateBalance()

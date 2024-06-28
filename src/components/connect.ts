@@ -80,7 +80,6 @@ export class ConnectButton extends LitElement {
       .then(() => {
         walletState.updateNetwork()
         walletState.updateAddress()
-        walletState.updateBalance()
       })
       .catch((e) => toast(e))
   }
@@ -96,6 +95,13 @@ export class ConnectButton extends LitElement {
             </sl-button>
             <sl-menu>
               <sl-menu-item>
+                <sl-icon slot="prefix" name="link-45deg"></sl-icon>
+                <sl-icon slot="suffix" name="box-arrow-up-right"></sl-icon>
+                <a href="${walletState.mempoolUrl}/address/${walletState.address}">View in mempool</a>
+              </sl-menu-item>
+              <sl-divider></sl-divider>
+              <sl-menu-item>
+                <sl-icon slot="prefix" name="${walletState.network == 'devnet' ? 'laptop' : 'globe'}"></sl-icon>
                 ${walletState.network}
                 <sl-menu slot="submenu">
                   <sl-menu-item @click=${this.switchNetwork.bind(this, 'testnet')}>testnet</sl-menu-item>

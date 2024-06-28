@@ -188,18 +188,13 @@ class WalletState extends State {
   }
 
   public async updateProtocolBalance(): Promise<Balance> {
-    return (this.promises['protocolBalance'] ??= Promise.all([
-      this.getAddress(),
-      this.getPublicKey(),
-      this.getNetwork()
-    ])
-      .then(([address, publicKey, network]) => {
-        if (address && publicKey)
-          return fetch(`/api/protocolBalance?address=${address}&pub=${publicKey}&network=${network}`)
-        throw new Error('wallet not connected')
+    return (this.promises['protocolBalance'] ??= this.getDepositAddress()
+      .then((depositAddress) => fetch(this.mempoolApiUrl(`/api/address/${depositAddress}`)).then(getJson))
+      .then(({ mempool_stats, chain_stats }) => {
+        const unconfirmed = mempool_stats.funded_txo_sum - mempool_stats.spent_txo_sum
+        const confirmed = chain_stats.funded_txo_sum - chain_stats.spent_txo_sum
+        return (this._protocolBalance = { unconfirmed, confirmed, total: unconfirmed + confirmed })
       })
-      .then(getJson)
-      .then((balance) => (this._protocolBalance = balance))
       .finally(() => delete this.promises['protocolBalance']))
   }
 
