@@ -37,7 +37,7 @@ interface SignPsbtRequestParams {
 }
 
 export class Leather extends BaseWallet {
-  private _network: Network = (localStorage.getItem('leather_network') as Network) ?? 'livenet'
+  private _network: Network = (localStorage.getItem('leather_network') as Network) ?? 'testnet'
   private addressesPromise: any
 
   private mempoolApiUrl(path: string): string {
