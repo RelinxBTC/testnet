@@ -76,8 +76,11 @@ export class AppMain extends LitElement {
             break
           case '_address':
             if (v) {
+              this.walletBalance = 0
               walletState.updateBalance()
+              this.protocolBalance = undefined
               walletState.updateProtocolBalance()
+              this.utxos = undefined
               walletState.updateUTXOs()
             }
             break

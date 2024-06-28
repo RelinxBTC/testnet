@@ -108,6 +108,24 @@ class WalletState extends State {
       .finally(() => delete this.promises['publicKey']))
   }
 
+  // ---- MPC public key ----
+  @property() private _mpcPublicKey?: string
+  public get mpcPublicKey(): string | undefined {
+    if (this._mpcPublicKey) return this._mpcPublicKey
+    this.updateMpcPublicKey()
+  }
+
+  public getMpcPublicKey(): Promise<string> {
+    return this._mpcPublicKey ? Promise.resolve(this._mpcPublicKey) : this.updateMpcPublicKey()
+  }
+
+  public updateMpcPublicKey(): Promise<string> {
+    return (this.promises['mpcPublicKey'] ??= fetch('/api/mpcPubkey')
+      .then(getJson)
+      .then(({ key: mpcPubkey }) => mpcPubkey)
+      .finally(() => delete this.promises['mpcPublicKey']))
+  }
+
   // ---- deposit address ----
   @property() private _depositaddress?: string
   public get depositaddress(): string | undefined {
@@ -121,14 +139,15 @@ class WalletState extends State {
   public async updateDepositAddress() {
     return (this.promises['depositAddress'] ??= Promise.all([
       this.getPublicKey(),
-      fetch('/api/mpcPubkey').then(getJson)
+      this.getMpcPublicKey(),
+      this.getNetwork()
     ])
       .then(
-        ([publicKey, { key: mpcPubkey }]) =>
+        ([publicKey, mpcPubkey, network]) =>
           btc.p2tr(
             undefined,
             { script: scriptTLSC(hex.decode(mpcPubkey), hex.decode(publicKey)) },
-            btcNetwork(this._network),
+            btcNetwork(network),
             true
           ).address
       )
@@ -140,12 +159,6 @@ class WalletState extends State {
   public get balance(): Balance | undefined {
     if (this._balance) return this._balance
     this.updateBalance()
-  }
-
-  @property({ type: Array }) private _utxos?: UTXO[]
-  public get utxos(): UTXO[] | undefined {
-    if (this._utxos) return this._utxos
-    this.updateUTXOs()
   }
 
   public async getBalance() {
@@ -190,13 +203,39 @@ class WalletState extends State {
       .finally(() => delete this.promises['protocolBalance']))
   }
 
+  // --- utxos ----
+  @property({ type: Array }) private _utxos?: UTXO[]
+  public get utxos(): UTXO[] | undefined {
+    if (this._utxos) return this._utxos
+    this.updateUTXOs()
+  }
+
   public async updateUTXOs(): Promise<UTXO[]> {
-    return (this.promises['utxos'] ??= Promise.all([this.getAddress(), this.getPublicKey(), this.getNetwork()])
-      .then(([address, publicKey, network]) => {
-        if (address && publicKey) return fetch(`/api/utxo?address=${address}&pub=${publicKey}&network=${network}`)
-        throw new Error('wallet not connected')
-      })
-      .then(getJson)
+    return (this.promises['utxos'] ??= this.getDepositAddress()
+      .then((depositAddress) =>
+        Promise.all([
+          fetch(this.mempoolApiUrl('/api/blocks/tip/height')).then(getJson),
+          fetch(this.mempoolApiUrl(`/api/address/${depositAddress}/utxo`)).then(getJson)
+        ])
+      )
+      .then(([lastBlock, utxos]) =>
+        (utxos as UTXO[])
+          .map((utxo: UTXO) => {
+            if (utxo.status.confirmed && lastBlock - utxo.status.block_height > 10) {
+              utxo.status.locked = false
+            } else {
+              utxo.status.locked = true
+            }
+            console.log('utxo:' + JSON.stringify(utxo))
+            return utxo
+          })
+          .sort((a, b) => {
+            if (a.status.confirmed && b.status.confirmed) return b.status.block_height - a.status.block_height
+            else if (a.status.confirmed && !b.status.confirmed) return 1
+            else if (b.status.confirmed && !a.status.confirmed) return -1
+            else return a.value - b.value
+          })
+      )
       .then((utxos) => (this._utxos = utxos))
       .finally(() => delete this.promises['utxos']))
   }
