@@ -4,6 +4,7 @@ import * as btc from '@scure/btc-signer'
 import { hex } from '@scure/base'
 import { scriptTLSC } from '../../lib/tlsc'
 import { toast, toastImportant } from './toast'
+import { btcNetwork } from '../../lib/network'
 
 export async function withdrawMPC(utxo: any) {
   return Promise.all([walletState.connector!.publicKey, walletState.connector?.accounts])
@@ -57,7 +58,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
       const p2tr = btc.p2tr(
         undefined,
         { script: scriptTLSC(hex.decode(mpcPubkey), hex.decode(publicKey)) },
-        btc.TEST_NETWORK,
+        btcNetwork(walletState.network),
         true
       )
       var value = 0
@@ -84,7 +85,7 @@ export async function withdrawWithoutMPC(utxoList: any) {
 
       // fee may not be enough, but we can not get vsize before sign and finalize
       const newFee = Math.max(300, feeRates.minimumFee, (tx.toPSBT().byteLength * feeRates.fastestFee) / 4)
-      tx.addOutputAddress(accounts![0], BigInt((value - newFee).toFixed()), btc.TEST_NETWORK)
+      tx.addOutputAddress(accounts![0], BigInt((value - newFee).toFixed()), btcNetwork(walletState.network))
 
       var toSignInputs: any = []
       for (var i = 0; i < tx.inputsLength; i++) toSignInputs.push({ index: i, publicKey, disableTweakSigner: true })

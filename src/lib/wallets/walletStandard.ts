@@ -14,7 +14,7 @@ import {
 } from 'sats-connect-v1'
 import { base64, hex } from '@scure/base'
 import * as btc from '@scure/btc-signer'
-import { mempoolApiUrl } from './utils'
+import { mempoolApiUrl } from '../../../lib/utils'
 
 const SatsConnectNamespace = 'sats-connect:'
 
@@ -90,7 +90,7 @@ export class WalletStandard extends BaseWallet {
 
   get balance(): Promise<Balance> {
     return this.accounts
-      .then((accounts: any) => fetch(`https://mempool.space/${this._network}/api/address/${accounts[0]}`))
+      .then((accounts: any) => fetch(mempoolApiUrl(`/api/address/${accounts[0]}`, this._network)))
       .then(getJson)
       .then((result: any) => {
         return {

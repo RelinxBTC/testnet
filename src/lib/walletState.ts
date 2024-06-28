@@ -9,6 +9,7 @@ import * as btc from '@scure/btc-signer'
 import { scriptTLSC } from '../../lib/tlsc'
 import { btcNetwork } from '../../lib/network'
 import { hex } from '@scure/base'
+import { mempoolApiUrl } from '../../lib/utils'
 
 export { StateController, type Unsubscribe } from '@lit-app/state'
 
@@ -82,15 +83,7 @@ class WalletState extends State {
   }
 
   public mempoolApiUrl(path: string): string {
-    if (path.startsWith('/api')) path = path.slice(4)
-    const hasVersion = path.startsWith('/v1')
-    if (hasVersion) path = path.slice(3)
-    return this._network == 'devnet'
-      ? 'http://localhost:8999/api/v1' + path
-      : 'https://mempool.space' +
-          (this._network != 'livenet' ? `/${this._network}/api` : '/api') +
-          (hasVersion ? '/v1' : '') +
-          path
+    return mempoolApiUrl(path, this._network)
   }
   public get mempoolUrl(): string {
     if (this._network == 'devnet') return 'http://localhost:8083'

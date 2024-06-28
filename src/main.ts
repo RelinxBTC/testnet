@@ -206,7 +206,7 @@ export class AppMain extends LitElement {
         </div>
 
         <div class="col-span-5 space-y-2">
-          <div class="relative panel font-medium">
+          <div class="relative panel font-medium min-h-60">
             <span class="text-xs text-sl-neutral-600">Wallet Balance</span>
             <div class="flex text-xl my-1 items-center">
               <sl-icon outline name="currency-bitcoin"></sl-icon>${Math.floor(this.walletBalance / 1e8)}.<span
@@ -224,18 +224,9 @@ export class AppMain extends LitElement {
                 </div>`
             )}
 
-            <sl-divider class="my-8"></sl-divider>
-            <div class="flex">
-              <div class="flex-1">
-                <span class="text-xs text-sl-neutral-600">Supply APR</span>
-                <div class="mt-2">2.65%</div>
-              </div>
-            </div>
             <supply-panel ${ref(this.supplyPanel)}></supply-panel>
             <withdraw-panel ${ref(this.withdrawPanel)}></withdraw-panel>
           </div>
-
-          <div class="relative panel"></div>
         </div>
       </div>
     </div>`

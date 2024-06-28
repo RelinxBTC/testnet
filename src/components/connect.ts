@@ -59,6 +59,7 @@ export class ConnectButton extends LitElement {
     try {
       let result = await walletState.connector.accounts
       if (!Array.isArray(result) || result.length == 0) result = await walletState.connector.requestAccounts()
+      walletState.updateNetwork()
       const info = getAddressInfo(result[0])
       if (info.network == 'mainnet') {
         throw new Error(`${result[0]} is not a testnet address`)
@@ -74,7 +75,14 @@ export class ConnectButton extends LitElement {
   }
 
   switchNetwork(network: Network) {
-    walletState.connector?.switchNetwork(network).catch((e) => toast(e))
+    walletState.connector
+      ?.switchNetwork(network)
+      .then(() => {
+        walletState.updateNetwork()
+        walletState.updateAddress()
+        walletState.updateBalance()
+      })
+      .catch((e) => toast(e))
   }
 
   render() {

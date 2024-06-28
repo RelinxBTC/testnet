@@ -2,7 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import * as bitcoin from 'bitcoinjs-lib'
 import ecc from '@bitcoinerlab/secp256k1'
 import { getSupplyP2tr } from '../api_lib/depositAddress.js'
+import { Network } from '../lib/types.js'
+import { mempool } from '../api_lib/mempool.js'
 import { getJson } from '../lib/fetch.js'
+import { mempoolApiUrl } from '../lib/utils.js'
 
 bitcoin.initEccLib(ecc)
 
@@ -12,12 +15,15 @@ export default async function handler(request: VercelRequest, response: VercelRe
     if (!pubKey) throw new Error('missing public key')
     const address = request.query['address'] as string
     if (!address) throw new Error('missing output address')
-    const network = (request.query['network'] as string) ?? ''
-    const p2tr = getSupplyP2tr(pubKey)
+    const network = request.query['network'] as Network
+    const p2tr = getSupplyP2tr(pubKey, network)
     console.log('supply addr:' + p2tr.address)
-    const lastBlock = await fetch(`https://mempool.space/${network}/api/blocks/tip/height`).then(getJson)
+    const {
+      bitcoin: { blocks }
+    } = mempool(network)
+    const lastBlock = await blocks.getBlocksTipHeight()
     console.log('lastBlock -> ' + lastBlock)
-    const utxos: [] = await fetch(`https://mempool.space/${network}/api/address/${p2tr.address}/utxo`)
+    const utxos: [] = await fetch(mempoolApiUrl(`/api/address/${p2tr.address}/utxo`, network))
       .then(getJson)
       .then((utxos) =>
         utxos

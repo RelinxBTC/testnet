@@ -3,11 +3,11 @@ import { Balance, Inscription, Network, SignPsbtOptions } from '.'
 import { getJson } from '../../../lib/fetch'
 import * as btc from '@scure/btc-signer'
 import { hex } from '@scure/base'
-import { mempoolApiUrl } from './utils'
+import { mempoolApiUrl } from '../../../lib/utils'
 import { btcNetwork } from '../../../lib/network'
 import { AddressType, getAddressInfo } from 'bitcoin-address-validation'
 
-enum WalletDefaultNetworkConfigurationIds {
+enum LeatherNetworks {
   mainnet = 'mainnet',
   testnet = 'testnet',
   signet = 'signet',
@@ -15,7 +15,7 @@ enum WalletDefaultNetworkConfigurationIds {
   devnet = 'devnet'
 }
 
-type DefaultNetworkConfigurations = keyof typeof WalletDefaultNetworkConfigurationIds
+type LeatherNetwork = keyof typeof LeatherNetworks
 
 enum SignatureHash {
   DEFAULT = 0x00,
@@ -32,7 +32,7 @@ interface SignPsbtRequestParams {
   allowedSighash?: SignatureHash[]
   broadcast?: boolean
   hex: string
-  network?: DefaultNetworkConfigurations
+  network?: LeatherNetwork
   signAtIndex?: number | number[]
 }
 
@@ -48,14 +48,26 @@ export class Leather extends BaseWallet {
     return (window as any).LeatherProvider
   }
 
+  private get leatherNetwork(): LeatherNetwork {
+    switch (this._network) {
+      case 'livenet':
+        return 'mainnet'
+      default:
+        return this._network
+    }
+  }
+
   get network() {
     return Promise.resolve(this._network)
   }
 
   switchNetwork(network: Network): Promise<void> {
-    this._network = network
-    localStorage.setItem('leather_network', network)
-    return Promise.resolve()
+    if (this._network != 'livenet' && network != 'livenet') {
+      this._network = network
+      localStorage.setItem('leather_network', network)
+      return Promise.resolve()
+    }
+    return Promise.reject(new Error('You need to change network in your Leather wallet and then reconnect'))
   }
 
   get accounts() {
@@ -63,7 +75,22 @@ export class Leather extends BaseWallet {
       this.addressesPromise?.then((addresses: any) =>
         addresses
           .map((addr: any) => {
-            if (addr.symbol == 'BTC' && addr.type == 'p2wpkh') return addr.address
+            if (addr.symbol == 'BTC' && addr.type == 'p2wpkh') {
+              const network = getAddressInfo(addr.address).network
+              if (network == 'mainnet') this._network = 'livenet'
+              else if (network == 'testnet') {
+                if (this._network == 'livenet') this._network = 'testnet'
+                else if (this._network == 'devnet')
+                  // transform address as pubkey is same
+                  return btc.p2wpkh(hex.decode(addr.publicKey), btcNetwork('devnet')).address
+              } else if (network == 'regtest') {
+                if (this._network == 'livenet') this._network = 'devnet'
+                else if (this._network != 'devnet')
+                  // transform address as pubkey is same
+                  return btc.p2wpkh(hex.decode(addr.publicKey), btc.TEST_NETWORK).address
+              }
+              return addr.address
+            }
             return undefined
           })
           .filter((addr: any) => addr != undefined)
@@ -206,7 +233,7 @@ export class Leather extends BaseWallet {
             amount: satoshis
           }
         ],
-        network: this._network
+        network: this.leatherNetwork
       })
       .then((response: any) => response.result.txid)
       .catch((e: any) => {
@@ -224,7 +251,7 @@ export class Leather extends BaseWallet {
 
   signPsbt(psbtHex: string, options?: SignPsbtOptions): Promise<string> {
     const signAtIndex: number[] | undefined = options?.toSignInputs.map((i) => i.index)
-    const requestParams: SignPsbtRequestParams = { hex: psbtHex, signAtIndex }
+    const requestParams: SignPsbtRequestParams = { hex: psbtHex, network: this.leatherNetwork, signAtIndex }
 
     return this.instance
       .request('signPsbt', requestParams)

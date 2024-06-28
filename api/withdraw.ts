@@ -5,13 +5,16 @@ import { getJson } from '../lib/fetch.js'
 import { minimumFee } from '../api_lib/minimumFee.js'
 import * as btc from '@scure/btc-signer'
 import { hex } from '@scure/base'
+import { mempoolApiUrl } from '../lib/utils.js'
+import { Network } from '../lib/types.js'
+import { btcNetwork } from '../lib/network.js'
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
   try {
     const pubKey = request.query['pub'] as string
     const address = request.query['address'] as string
     const utxo = request.query['utxo'] as string
-    const network = (request.query['network'] as string) ?? ''
+    const network = request.query['network'] as Network
     if (!pubKey) throw new Error('missing public key')
     if (!address) throw new Error('missing output address')
     if (!address) throw new Error('missing network')
@@ -22,7 +25,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
     if (utxo != undefined) {
       utxoList = [JSON.parse(utxo)]
     } else {
-      utxoList = await fetch(`https://mempool.space/${network}/api/address/${p2tr.address}/utxo`).then(getJson)
+      utxoList = await fetch(mempoolApiUrl(`/api/address/${p2tr.address}/utxo`, network)).then(getJson)
     }
     console.log('utxo is ---->', utxo)
     const utxos = utxoList
@@ -46,7 +49,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
     const fee = await minimumFee(psbt.finalizeAllInputs().extractTransaction(true).virtualSize())
     const finalTx = new btc.Transaction()
     utxos.forEach((utxo: any) => finalTx.addInput(utxo))
-    finalTx.addOutputAddress(address, BigInt(value - fee), btc.TEST_NETWORK)
+    finalTx.addOutputAddress(address, BigInt(value - fee), btcNetwork(network))
     finalTx.sign(hdKey.privateKey!)
 
     response.status(200).send({ psbt: hex.encode(finalTx.toPSBT()) })
