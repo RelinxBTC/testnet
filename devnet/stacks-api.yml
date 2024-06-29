@@ -1,0 +1,8 @@
+version: '3.7'
+name: stacks
+
+services:
+  api-standalone-regtest: # cheat leather to show devnet as available, can be stopped latter
+    image: hirosystems/stacks-blockchain-api-standalone-regtest:2023022719-6b59d0b-2.1.0.0
+    ports:
+      - 3999:3999

@@ -77,8 +77,6 @@ services:
     restart: on-failure
     stop_grace_period: 5s
     command: './wait-for-it.sh db:3306 --timeout=720 --strict -- ./start.sh'
-    ports:
-      - 8999:8999
     depends_on:
       - bitcoind
       - electrs
