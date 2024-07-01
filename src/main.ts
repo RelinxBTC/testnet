@@ -62,7 +62,7 @@ export class AppMain extends LitElement {
     super.connectedCallback()
     this.stateUnsubscribes.push(
       walletState.subscribe((k, v) => {
-        console.log(k, v)
+        console.debug('[walletState update]', k, '->', v)
         switch (k) {
           case '_balance':
             this.walletBalance = v?.total ?? 0
@@ -199,18 +199,16 @@ export class AppMain extends LitElement {
                 this.utxos != undefined && this.utxos.length == 0,
                 () => html`<div style="font-size: 18px;"><sl-icon name="file-earmark-x"></sl-icon>No Data Found.</div> `
               )}
-              ${map(this.utxos, (utxo) => {
-                console.log(utxo)
-                return html`<li>
-                  <utxo-row class="py-4 flex items-center" .utxo=${utxo}></utxo-row>
-                </li>`
-              })}
+              ${map(
+                this.utxos,
+                (utxo) => html`<li><utxo-row class="py-4 flex items-center" .utxo=${utxo}></utxo-row></li>`
+              )}
             </ul>
           </div>
         </div>
 
         <div class="col-span-5 space-y-2">
-          <div class="relative panel font-medium min-h-60">
+          <div class="relative panel font-medium">
             <span class="text-xs text-sl-neutral-600">Wallet Balance</span>
             <div class="flex text-xl my-1 items-center">
               <sl-icon outline name="currency-bitcoin"></sl-icon>${Math.floor(this.walletBalance / 1e8)}.<span
@@ -227,7 +225,8 @@ export class AppMain extends LitElement {
                   ${formatUnits(Math.abs(this.balanceUnconfirmed), 8) + ' Unconfirmed'}
                 </div>`
             )}
-
+          </div>
+          <div class="relative font-medium min-h-72">
             <supply-panel ${ref(this.supplyPanel)}></supply-panel>
             <withdraw-panel ${ref(this.withdrawPanel)}></withdraw-panel>
           </div>

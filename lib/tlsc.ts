@@ -5,7 +5,7 @@ import { Script } from '@scure/btc-signer'
  * Time-lock self-custody script, which can be spent by userKey when time
  * passed, or with 2/2 multisig from user&MPC.
  */
-export function scriptTLSC(mpcKey: Uint8Array, userKey: Uint8Array): Uint8Array {
+export function scriptTLSC(mpcKey: Uint8Array, userKey: Uint8Array, blocks = 1): Uint8Array {
   if (!userKey.length) throw new Error('user key is empty')
   if (!mpcKey.length) throw new Error('mpc key is empty')
   return Script.encode([
@@ -15,7 +15,7 @@ export function scriptTLSC(mpcKey: Uint8Array, userKey: Uint8Array): Uint8Array 
     toXOnlyU8(mpcKey), // check MPC key, here use hd public key for demo
     'CHECKSIGVERIFY', // fail if signature does not match
     'ELSE', // stack contains only one signature
-    'OP_1', // 1 block later
+    blocks, // 1 block later
     'CHECKSEQUENCEVERIFY', // fail if block not passes
     'DROP', // drop check result
     'ENDIF',

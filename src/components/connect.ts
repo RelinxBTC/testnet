@@ -80,6 +80,7 @@ export class ConnectButton extends LitElement {
       .then(() => {
         walletState.updateNetwork()
         walletState.updateAddress()
+        walletState.updateDepositAddress()
       })
       .catch((e) => toast(e))
   }

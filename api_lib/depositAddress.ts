@@ -16,6 +16,11 @@ for (var i = 0; i < 3; i++) {
   keys[i] = hdKey.derive(i)
 }
 
-export function getSupplyP2tr(userKey: string, network?: Network) {
-  return btc.p2tr(undefined, { script: scriptTLSC(hdKey.publicKey, hex.decode(userKey)) }, btcNetwork(network), true)
+export function getSupplyP2tr(userKey: string, network?: Network, blocks = 1) {
+  return btc.p2tr(
+    undefined,
+    { script: scriptTLSC(hdKey.publicKey, hex.decode(userKey), blocks) },
+    btcNetwork(network),
+    true
+  )
 }

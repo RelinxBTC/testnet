@@ -30,9 +30,12 @@ export type UTXO = {
     block_hash: string
     block_time: number
     locked: boolean
+    lock_blocks: number
   }
   value: number
 }
+
+const defaultBlocks = [1, 10, 100]
 
 class WalletState extends State {
   @storage({ key: 'wallet' }) @property() wallet?: WalletType
@@ -127,13 +130,20 @@ class WalletState extends State {
   }
 
   // ---- deposit address ----
-  @property() private _depositaddress?: string
-  public get depositaddress(): string | undefined {
-    if (this._depositaddress) return this._depositaddress
+  @property({ type: Object, value: {} }) private _depositAddresses: Record<number, string> = {}
+  public get depositAddress(): string | undefined {
+    if (1 in this._depositAddresses) return this._depositAddresses[1]
     this.updateDepositAddress()
   }
-  public async getDepositAddress() {
-    return this._depositaddress ?? this.updateDepositAddress()
+
+  public async getDepositAddress(blocks = 1): Promise<string> {
+    return this._depositAddresses[blocks] ?? this.updateDepositAddress().then(() => this._depositAddresses[blocks])
+  }
+
+  public async getDepositAddresses(): Promise<typeof this._depositAddresses> {
+    return 1 in this._depositAddresses
+      ? this._depositAddresses
+      : this.updateDepositAddress().then(() => this._depositAddresses)
   }
 
   public async updateDepositAddress() {
@@ -143,14 +153,17 @@ class WalletState extends State {
           ? Promise.all([pubKey, this.getMpcPublicKey(), this.getNetwork()])
           : Promise.reject('wallet not connected')
       )
-      .then(
-        ([publicKey, mpcPubkey, network]) =>
-          btc.p2tr(
+      .then(([publicKey, mpcPubkey, network]) =>
+        defaultBlocks.forEach((blocks) => {
+          const address = btc.p2tr(
             undefined,
-            { script: scriptTLSC(hex.decode(mpcPubkey), hex.decode(publicKey)) },
+            { script: scriptTLSC(hex.decode(mpcPubkey), hex.decode(publicKey), blocks) },
             btcNetwork(network),
             true
           ).address
+          if (address) this._depositAddresses[blocks] = address
+          else delete this._depositAddresses[blocks]
+        })
       )
       .finally(() => delete this.promises['depositAddress']))
   }
@@ -159,7 +172,7 @@ class WalletState extends State {
   @property({ type: Object }) private _balance?: Balance
   public get balance(): Balance | undefined {
     if (this._balance) return this._balance
-    this.updateBalance()
+    this.updateBalance().catch(console.debug)
   }
 
   public async getBalance() {
@@ -189,11 +202,20 @@ class WalletState extends State {
   }
 
   public async updateProtocolBalance(): Promise<Balance> {
-    return (this.promises['protocolBalance'] ??= this.getDepositAddress()
-      .then((depositAddress) => fetch(this.mempoolApiUrl(`/api/address/${depositAddress}`)).then(getJson))
-      .then(({ mempool_stats, chain_stats }) => {
-        const unconfirmed = mempool_stats.funded_txo_sum - mempool_stats.spent_txo_sum
-        const confirmed = chain_stats.funded_txo_sum - chain_stats.spent_txo_sum
+    return (this.promises['protocolBalance'] ??= this.getDepositAddresses()
+      .then((depositAddresses) =>
+        Promise.all(
+          Object.keys(depositAddresses).map((block) =>
+            fetch(this.mempoolApiUrl(`/api/address/${depositAddresses[Number(block)]}`)).then(getJson)
+          )
+        )
+      )
+      .then((balances) => {
+        var [unconfirmed, confirmed] = [0, 0]
+        balances.forEach(({ mempool_stats, chain_stats }) => {
+          unconfirmed += mempool_stats.funded_txo_sum - mempool_stats.spent_txo_sum
+          confirmed += chain_stats.funded_txo_sum - chain_stats.spent_txo_sum
+        })
         return (this._protocolBalance = { unconfirmed, confirmed, total: unconfirmed + confirmed })
       })
       .finally(() => delete this.promises['protocolBalance']))
@@ -207,29 +229,39 @@ class WalletState extends State {
   }
 
   public async updateUTXOs(): Promise<UTXO[]> {
-    return (this.promises['utxos'] ??= this.getDepositAddress()
-      .then((depositAddress) =>
-        Promise.all([
-          fetch(this.mempoolApiUrl('/api/blocks/tip/height')).then(getJson),
-          fetch(this.mempoolApiUrl(`/api/address/${depositAddress}/utxo`)).then(getJson)
-        ])
+    return (this.promises['utxos'] ??= this.getDepositAddresses()
+      .then(
+        (depositAddresses) => (
+          console.debug('updating utxos with addresses', depositAddresses),
+          Promise.all([
+            fetch(this.mempoolApiUrl('/api/blocks/tip/height')).then(getJson),
+            Promise.all(
+              Object.keys(depositAddresses).map((block) =>
+                fetch(this.mempoolApiUrl(`/api/address/${depositAddresses[Number(block)]}/utxo`))
+                  .then(getJson)
+                  .then((utxos: UTXO[]) => (utxos.forEach((utxo) => (utxo.status.lock_blocks = Number(block))), utxos))
+              )
+            )
+          ])
+        )
       )
-      .then(([lastBlock, utxos]) =>
-        (utxos as UTXO[])
-          .map((utxo: UTXO) => {
-            if (utxo.status.confirmed && lastBlock - utxo.status.block_height > 10) {
-              utxo.status.locked = false
-            } else {
-              utxo.status.locked = true
-            }
-            console.log('utxo:' + JSON.stringify(utxo))
+      .then(([lastBlock, utxoses]) =>
+        utxoses
+          .reduce((accumulator, utxos) => accumulator.concat(utxos), [])
+          .map((utxo) => {
+            utxo.status.locked =
+              !utxo.status.confirmed || lastBlock - utxo.status.block_height < utxo.status.lock_blocks - 1
+            console.debug('got utxo', utxo)
             return utxo
           })
           .sort((a, b) => {
-            if (a.status.confirmed && b.status.confirmed) return b.status.block_height - a.status.block_height
-            else if (a.status.confirmed && !b.status.confirmed) return 1
+            const l = b.status.lock_blocks - a.status.lock_blocks
+            if (a.status.confirmed && b.status.confirmed) {
+              const h = b.status.block_height - a.status.block_height
+              return h ? h : l
+            } else if (a.status.confirmed && !b.status.confirmed) return 1
             else if (b.status.confirmed && !a.status.confirmed) return -1
-            else return a.value - b.value
+            else return l ? l : b.value - a.value
           })
       )
       .then((utxos) => (this._utxos = utxos))

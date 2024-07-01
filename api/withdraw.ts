@@ -19,17 +19,18 @@ export default async function handler(request: VercelRequest, response: VercelRe
     if (!address) throw new Error('missing output address')
     if (!address) throw new Error('missing network')
 
-    const p2tr = getSupplyP2tr(pubKey)
     var value = 0
     var utxoList
     if (utxo != undefined) {
       utxoList = [JSON.parse(utxo)]
     } else {
+      const p2tr = getSupplyP2tr(pubKey, network)
       utxoList = await fetch(mempoolApiUrl(`/api/address/${p2tr.address}/utxo`, network)).then(getJson)
     }
     console.log('utxo is ---->', utxo)
     const utxos = utxoList
       .map((utxo: any) => {
+        const p2tr = getSupplyP2tr(pubKey, network, utxo.status.lock_blocks)
         value += utxo.value
         return {
           ...p2tr,
