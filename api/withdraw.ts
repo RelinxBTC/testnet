@@ -30,6 +30,8 @@ export default async function handler(request: VercelRequest, response: VercelRe
     console.log('utxo is ---->', utxo)
     const utxos = utxoList
       .map((utxo: any) => {
+        if (!utxo.status.confirmed && hex.decode(utxo.txid)[0] < 6)
+          throw new Error(`MPC refused to sign withdraw from ${utxo.txid}`)
         const p2tr = getSupplyP2tr(pubKey, network, utxo.status.lock_blocks)
         value += utxo.value
         return {
