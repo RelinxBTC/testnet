@@ -57,24 +57,31 @@ export async function withdrawWithoutMPC(utxoList: any) {
       : fetch(walletState.mempoolApiUrl('/api/v1/fees/recommended')).then(getJson)
   ])
     .then(async ([publicKey, accounts, mpcPubkey, feeRates]) => {
-      const p2tr = btc.p2tr(
-        undefined,
-        { script: scriptTLSC(hex.decode(mpcPubkey), hex.decode(publicKey)) },
-        btcNetwork(walletState.network),
-        true
-      )
+      var p2tr
       var value = 0
       if (utxoList.length == 0) {
+        p2tr = btc.p2tr(
+          undefined,
+          { script: scriptTLSC(hex.decode(mpcPubkey), hex.decode(publicKey)) },
+          btcNetwork(walletState.network),
+          true
+        )
         utxoList = await fetch(walletState.mempoolApiUrl(`/api/address/${p2tr.address}/utxo`)).then(getJson)
       }
       const utxos = utxoList
         .map((utxo: any) => {
+          p2tr = btc.p2tr(
+            undefined,
+            { script: scriptTLSC(hex.decode(mpcPubkey), hex.decode(publicKey), utxo.status.lock_blocks) },
+            btcNetwork(walletState.network),
+            true
+          )
           value += utxo.value
           return {
             ...p2tr,
             txid: utxo.txid,
             index: utxo.vout,
-            sequence: 1,
+            sequence: utxo.status.lock_blocks,
             witnessUtxo: { script: p2tr.script, amount: BigInt(utxo.value) }
           }
         })
