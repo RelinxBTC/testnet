@@ -197,18 +197,24 @@ export class AppMain extends LitElement {
             <div class="text-xs mb-3 flex justify-between items-center">
               <span
                 >${when(
-                  this.utxos?.length,
+                  this.utxos != undefined,
                   () => html`${this.utxos?.length} deposits, current block height: ${this.height}`,
-                  () => html`Loading Deposits...`
+                  () =>
+                    this.protocolBalance == undefined ? html`Connect wallet to continue` : html`Loading Deposits...`
                 )}</span
               >
-              <sl-button variant="default" size="small" ?loading=${this.updating} @click=${() => this.updateAll()}>
+              <sl-button
+                variant="default"
+                size="small"
+                ?loading=${this.updating}
+                ?disabled=${this.updating}
+                @click=${() => this.updateAll()}
+              >
                 <sl-icon slot="suffix" name="arrow-clockwise"></sl-icon>
                 Refresh
               </sl-button>
             </div>
             <ul>
-              ${when(this.utxos == undefined, () => html` <sl-progress-bar indeterminate></sl-progress-bar> `)}
               ${when(
                 this.utxos != undefined && this.utxos.length == 0,
                 () => html`<div style="font-size: 18px;"><sl-icon name="file-earmark-x"></sl-icon>No Data Found.</div> `
