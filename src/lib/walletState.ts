@@ -221,6 +221,20 @@ class WalletState extends State {
       .finally(() => delete this.promises['protocolBalance']))
   }
 
+  // ---- height ----
+  @property({ type: Object }) private _height?: number
+  public get height(): number | undefined {
+    if (this._height) return this._height
+    this.getHeight().catch(console.debug)
+  }
+
+  public async getHeight() {
+    return (this.promises['height'] ??= fetch(this.mempoolApiUrl('/api/blocks/tip/height'))
+      .then(getJson)
+      .then((height) => (this._height = height))
+      .finally(() => delete this.promises['height']))
+  }
+
   // --- utxos ----
   @property({ type: Array }) private _utxos?: UTXO[]
   public get utxos(): UTXO[] | undefined {
@@ -234,7 +248,7 @@ class WalletState extends State {
         (depositAddresses) => (
           console.debug('updating utxos with addresses', depositAddresses),
           Promise.all([
-            fetch(this.mempoolApiUrl('/api/blocks/tip/height')).then(getJson),
+            this.getHeight(),
             Promise.all(
               Object.keys(depositAddresses).map((block) =>
                 fetch(this.mempoolApiUrl(`/api/address/${depositAddresses[Number(block)]}/utxo`))

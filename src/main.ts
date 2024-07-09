@@ -52,10 +52,11 @@ export class AppMain extends LitElement {
   @state() progress: Ref<SlProgressBar> = createRef<SlProgressBar>()
   @state() protocolBalance?: Balance
   @state() utxos?: []
+  @state() height?: number
+  @state() updating?: boolean
   static styles = [unsafeCSS(baseStyle), unsafeCSS(style)]
 
-  private protocolBalanceUpdater?: Promise<any>
-  private utxoUpdater?: Promise<any>
+  private timedUpdater?: Promise<any>
   private stateUnsubscribes: Unsubscribe[] = []
 
   connectedCallback(): void {
@@ -74,22 +75,17 @@ export class AppMain extends LitElement {
           case '_utxos':
             this.utxos = v
             break
+          case '_height':
+            this.height = v
+            break
           case '_address':
           case '_network':
-            if (v) {
-              this.walletBalance = 0
-              walletState.updateBalance()
-              this.protocolBalance = undefined
-              walletState.updateProtocolBalance()
-              this.utxos = undefined
-              walletState.updateUTXOs()
-            }
+            if (v) this.updateAll(true)
             break
         }
       })
     )
-    this.protocolBalanceUpdater ??= this.updateProtocolBalance()
-    this.utxoUpdater ??= this.updateProtocolUtxos()
+    this.timedUpdater ??= this.busyUpdater()
   }
 
   disconnectedCallback(): void {
@@ -102,18 +98,24 @@ export class AppMain extends LitElement {
     return walletState.balance?.unconfirmed ?? 0
   }
 
-  async updateProtocolUtxos() {
-    while (true) {
-      await walletState.updateUTXOs().catch((e) => console.log(`failed to update utxo list, error:`, e))
-      await new Promise((r) => setTimeout(r, 60000))
+  updateAll(clearValues = false) {
+    this.updating = true
+    if (clearValues) {
+      this.height = undefined
+      this.walletBalance = 0
+      this.protocolBalance = undefined
+      this.utxos = undefined
     }
+    return Promise.all([
+      walletState.updateBalance(),
+      walletState.updateProtocolBalance(),
+      walletState.updateUTXOs()
+    ]).finally(() => (this.updating = false))
   }
 
-  async updateProtocolBalance() {
+  async busyUpdater() {
     while (true) {
-      await walletState
-        .updateProtocolBalance()
-        .catch((e) => console.log(`failed to update protocol balance, error:`, e))
+      await this.updateAll()
       await new Promise((r) => setTimeout(r, 60000))
     }
   }
@@ -192,8 +194,20 @@ export class AppMain extends LitElement {
       <div class="grid grid-cols-5 space-y-5 sm:grid-cols-12 sm:space-x-5 sm:space-y-0">
         <div class="col-span-7">
           <div class="relative panel !rounded-none">
+            <div class="text-xs mb-3 flex justify-between items-center">
+              <span
+                >${when(
+                  this.utxos?.length,
+                  () => html`${this.utxos?.length} deposits, current block height: ${this.height}`,
+                  () => html`Loading Deposits...`
+                )}</span
+              >
+              <sl-button variant="default" size="small" ?loading=${this.updating} @click=${() => this.updateAll()}>
+                <sl-icon slot="suffix" name="arrow-clockwise"></sl-icon>
+                Refresh
+              </sl-button>
+            </div>
             <ul>
-              <li class="text-xs mb-3">${this.utxos?.length} Deposits</li>
               ${when(this.utxos == undefined, () => html` <sl-progress-bar indeterminate></sl-progress-bar> `)}
               ${when(
                 this.utxos != undefined && this.utxos.length == 0,
