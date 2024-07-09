@@ -125,7 +125,7 @@ class WalletState extends State {
   public updateMpcPublicKey(): Promise<string> {
     return (this.promises['mpcPublicKey'] ??= fetch('/api/mpcPubkey')
       .then(getJson)
-      .then(({ key: mpcPubkey }) => mpcPubkey)
+      .then(({ key: mpcPubkey }) => (this._mpcPublicKey = mpcPubkey))
       .finally(() => delete this.promises['mpcPublicKey']))
   }
 

@@ -14,12 +14,14 @@ import { withdrawMPC, withdrawWithoutMPC } from '../lib/withdraw'
 @customElement('withdraw-panel')
 export class WithdrawPanel extends LitElement {
   static styles = [unsafeCSS(baseStyle), unsafeCSS(style)]
+  private mediaList = globalThis.matchMedia('(min-width:640px)')
   @property() coin = 'Bitcoin'
   @state() drawer: Ref<SlDrawer> = createRef<SlDrawer>()
   @state() input: Ref<SlInput> = createRef<SlInput>()
   @state() inputValue = 0
   @state() adding = false
   @state() erro_msg = ''
+  @state() placement = this.placementByMedia(this.mediaList)
 
   get balanceConfirmed() {
     return walletState.balance?.confirmed ?? 0
@@ -49,6 +51,22 @@ export class WithdrawPanel extends LitElement {
   constructor() {
     super()
     new StateController(this, walletState)
+  }
+
+  private placementByMedia(mediaList: MediaQueryList) {
+    return mediaList.matches ? 'end' : 'bottom'
+  }
+
+  private placementUpdater = (event: any) => (this.placement = this.placementByMedia(event))
+
+  connectedCallback(): void {
+    super.connectedCallback()
+    this.mediaList.addEventListener('change', this.placementUpdater)
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback()
+    this.mediaList.removeEventListener('change', this.placementUpdater)
   }
 
   public show() {
@@ -88,28 +106,23 @@ export class WithdrawPanel extends LitElement {
 
   render() {
     return html`
-      <sl-drawer
-        ${ref(this.drawer)}
-        placement="bottom"
-        no-header
-        ?contained=${globalThis.matchMedia('(min-width:640px').matches}
-        class="drawer-placement-bottom sm:drawer-contained"
-      >
-        <span class="font-medium text-xs" style="color:var(--sl-color-green-500)">Withdraw ${this.coin}</span>
-        <div class="flex items-center mt-5">
-          <sl-input
-            ${ref(this.input)}
-            class="flex-auto mr-2"
-            size="large"
-            placeholder="0"
-            filled
-            type="number"
-            @sl-input=${() => (this.inputValue = this.input.value!.valueAsNumber)}
-          ></sl-input>
+      <sl-drawer ${ref(this.drawer)} placement=${this.placement} class="[&::part(body)]:pt-0">
+        <span slot="label" style="color:var(--sl-color-green-500)">Withdraw ${this.coin}</span>
+        <sl-input
+          ${ref(this.input)}
+          style="--sl-input-spacing-large: 0.2rem;"
+          size="large"
+          placeholder="0"
+          filled
+          type="number"
+          @sl-input=${() => (this.inputValue = this.input.value!.valueAsNumber)}
+        >
+          <sl-icon slot="prefix" name="currency-bitcoin"></sl-icon>
           ${when(
             this.balanceReleased > 0,
             () =>
               html` <sl-button
+                slot="suffix"
                 size="small"
                 @click=${() => {
                   this.inputValue = this.balanceReleased / 1e8
@@ -123,6 +136,7 @@ export class WithdrawPanel extends LitElement {
             this.balanceReleased == 0,
             () =>
               html` <sl-button
+                slot="suffix"
                 size="small"
                 @click=${() => {
                   this.inputValue = this.balance / 1e8
@@ -132,21 +146,20 @@ export class WithdrawPanel extends LitElement {
                 >Max</sl-button
               >`
           )}
-        </div>
-        <div class="flex text-xs items-center text-sl-neutral-600">
-          ${this.balanceReleased == 0 ? 'Current withdraw needs MPC signature.' : ''}
-        </div>
-        <div class="flex text-xs items-center text-sl-neutral-600">
-          <sl-icon outline name="currency-bitcoin"></sl-icon>
-          ${Math.floor(this.balance / 1e8)}.${Math.floor((this.balance % 1e8) / 1e4)
-            .toString()
-            .padStart(4, '0')}
-          (${Math.floor(this.balanceReleased / 1e8)}.${Math.floor((this.balanceReleased % 1e8) / 1e4)
-            .toString()
-            .padStart(4, '0')}
-          Unlocked)
-        </div>
-
+          <div slot="help-text" class="flex text-xs items-center text-sl-neutral-600">
+            ${this.balanceReleased == 0 ? 'Current withdraw needs MPC signature.' : ''}
+          </div>
+          <div slot="help-text" class="flex text-xs items-center text-sl-neutral-600">
+            <sl-icon outline name="currency-bitcoin"></sl-icon>
+            ${Math.floor(this.balance / 1e8)}.${Math.floor((this.balance % 1e8) / 1e4)
+              .toString()
+              .padStart(4, '0')}
+            (${Math.floor(this.balanceReleased / 1e8)}.${Math.floor((this.balanceReleased % 1e8) / 1e4)
+              .toString()
+              .padStart(4, '0')}
+            Unlocked)
+          </div>
+        </sl-input>
         <div class="mt-4 flex space-x-4">
           <sl-button class="w-full" @click=${() => this.drawer.value?.hide()} pill>Cancel</sl-button>
           <sl-button

@@ -246,12 +246,10 @@ export class AppMain extends LitElement {
                 </div>`
             )}
           </div>
-          <div class="relative font-medium min-h-72">
-            <supply-panel ${ref(this.supplyPanel)}></supply-panel>
-            <withdraw-panel ${ref(this.withdrawPanel)}></withdraw-panel>
-          </div>
         </div>
       </div>
+      <supply-panel ${ref(this.supplyPanel)}></supply-panel>
+      <withdraw-panel ${ref(this.withdrawPanel)}></withdraw-panel>
     </div>`
   }
 }
