@@ -33,6 +33,9 @@ export interface Wallet {
   signPsbts(psbtHexs: string[], options?: SignPsbtOptions): Promise<string[]>
   /** @returns txid */
   pushPsbt(psbtHex: string): Promise<string>
+
+  /** bip322-simple signature */
+  signMessage(message: string): Promise<string>
 }
 
 export type Inscription = {

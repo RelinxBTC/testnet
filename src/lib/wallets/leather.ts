@@ -1,5 +1,4 @@
-import { BaseWallet } from './base'
-import { Balance, Inscription, Network, SignPsbtOptions } from '.'
+import { Balance, Inscription, Network, SignPsbtOptions, Wallet } from '.'
 import { getJson } from '../../../lib/fetch'
 import * as btc from '@scure/btc-signer'
 import { hex } from '@scure/base'
@@ -36,7 +35,7 @@ interface SignPsbtRequestParams {
   signAtIndex?: number | number[]
 }
 
-export class Leather extends BaseWallet {
+export class Leather implements Wallet {
   private _network: Network = (localStorage.getItem('leather_network') as Network) ?? 'testnet'
   private addressesPromise: any
 
@@ -46,6 +45,10 @@ export class Leather extends BaseWallet {
 
   protected get instance() {
     return (window as any).LeatherProvider
+  }
+
+  get installed() {
+    return typeof this.instance !== 'undefined'
   }
 
   private get leatherNetwork(): LeatherNetwork {
@@ -287,5 +290,14 @@ export class Leather extends BaseWallet {
         throw new Error(text)
       })
     })
+  }
+
+  signMessage(message: string): Promise<string> {
+    return this.instance
+      .request('signMessage', {
+        message: message,
+        network: this.leatherNetwork
+      })
+      .then((response: any) => response.result.signature)
   }
 }

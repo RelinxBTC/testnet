@@ -1,8 +1,8 @@
-import { BaseWallet } from './base'
+import { UniSat } from './unisat'
 import { Balance, Inscription, Network, SignPsbtOptions, WalletEvent } from '.'
 import { getJson } from '../../../lib/fetch'
 
-export class OKX extends BaseWallet {
+export class OKX extends UniSat {
   private _network: Network = (localStorage.getItem('okx_network') as Network) ?? 'livenet'
   private _instanceTestnet: any = this.instanceTestnet
   private get instanceTestnet() {

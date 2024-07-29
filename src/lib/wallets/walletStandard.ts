@@ -1,8 +1,7 @@
-import { BaseWallet } from './base'
-import type { Balance, Inscription, Network, SignPsbtOptions, WalletEvent, WalletType } from '.'
+import type { Balance, Inscription, Network, SignPsbtOptions, Wallet, WalletEvent, WalletType } from '.'
 import { getJson } from '../../../lib/fetch'
 import { getWallets } from '@wallet-standard/app'
-import type { Wallet } from '@wallet-standard/base'
+import type { Wallet as WSWallet } from '@wallet-standard/base'
 import {
   Address,
   AddressPurpose,
@@ -10,7 +9,8 @@ import {
   BitcoinProvider,
   getAddress,
   sendBtcTransaction,
-  signTransaction
+  signTransaction,
+  signMessage
 } from 'sats-connect-v1'
 import { base64, hex } from '@scure/base'
 import * as btc from '@scure/btc-signer'
@@ -24,19 +24,18 @@ type SatsConnectFeature = {
   }
 }
 
-export function Wallets(): Wallet[] {
+export function Wallets(): WSWallet[] {
   return getWallets()
     .get()
     .filter((v) => (v.features[SatsConnectNamespace] ? v : null))
 }
 
-export class WalletStandard extends BaseWallet {
-  private _wallet: Wallet
+export class WalletStandard implements Wallet {
+  private _wallet: WSWallet
   private _provider?: BitcoinProvider
   private _addresses?: Address[]
   private _network: Network = (localStorage.getItem('satsconnect_network') as Network) ?? 'livenet'
   constructor(type: WalletType) {
-    super()
     const wallet = Wallets().find((v) => (v.name == type ? v : null))
     if (!wallet) throw new Error(`wallet ${type} not found`)
     this._wallet = wallet
@@ -162,7 +161,7 @@ export class WalletStandard extends BaseWallet {
   }
 
   signPsbts(psbtHexs: string[], options?: SignPsbtOptions): Promise<string[]> {
-    return this.instance.signPsbts(psbtHexs, options)
+    return Promise.all(psbtHexs.map((psbt) => this.signPsbt(psbt, options)))
   }
 
   pushPsbt(psbtHex: string): Promise<string> {
@@ -178,5 +177,20 @@ export class WalletStandard extends BaseWallet {
         throw new Error(text)
       })
     })
+  }
+
+  signMessage(message: string): Promise<string> {
+    return new Promise((resolve, reject) =>
+      signMessage({
+        getProvider: this.getProvider,
+        payload: {
+          message,
+          address: this._addresses![0].address,
+          network: { type: BitcoinNetworkType.Mainnet }
+        },
+        onFinish: resolve,
+        onCancel: () => reject('Request canceled')
+      })
+    )
   }
 }
