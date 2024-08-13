@@ -130,20 +130,20 @@ class WalletState extends State {
   }
 
   // ---- deposit address ----
-  @property({ type: Object, value: {} }) private _depositAddresses: Record<number, string> = {}
+  @property({ type: Object }) private _depositAddresses?: Record<number, string>
   public get depositAddress(): string | undefined {
-    if (1 in this._depositAddresses) return this._depositAddresses[1]
+    if (this._depositAddresses && 1 in this._depositAddresses) return this._depositAddresses[1]
     this.updateDepositAddress()
   }
 
   public async getDepositAddress(blocks = 1): Promise<string> {
-    return this._depositAddresses[blocks] ?? this.updateDepositAddress().then(() => this._depositAddresses[blocks])
+    return this._depositAddresses?.[blocks] ?? this.updateDepositAddress().then(() => this._depositAddresses![blocks])
   }
 
-  public async getDepositAddresses(): Promise<typeof this._depositAddresses> {
-    return 1 in this._depositAddresses
+  public async getDepositAddresses(): Promise<Record<number, string>> {
+    return this._depositAddresses && 1 in this._depositAddresses
       ? this._depositAddresses
-      : this.updateDepositAddress().then(() => this._depositAddresses)
+      : this.updateDepositAddress().then(() => this._depositAddresses!)
   }
 
   public async updateDepositAddress() {
@@ -153,7 +153,8 @@ class WalletState extends State {
           ? Promise.all([pubKey, this.getMpcPublicKey(), this.getNetwork()])
           : Promise.reject('wallet not connected')
       )
-      .then(([publicKey, mpcPubkey, network]) =>
+      .then(([publicKey, mpcPubkey, network]) => {
+        this._depositAddresses = {}
         defaultBlocks.forEach((blocks) => {
           const address = btc.p2tr(
             undefined,
@@ -161,10 +162,9 @@ class WalletState extends State {
             btcNetwork(network),
             true
           ).address
-          if (address) this._depositAddresses[blocks] = address
-          else delete this._depositAddresses[blocks]
+          if (address) this._depositAddresses![blocks] = address
         })
-      )
+      })
       .finally(() => delete this.promises['depositAddress']))
   }
 
