@@ -1,0 +1,13 @@
+:host {
+  @media (max-width: 640px) {
+    sl-drawer {
+      --size: 30rem;
+    }
+  }
+  sl-drawer::part(body) {
+    @apply pt-0;
+  }
+  sl-drawer::part(title) {
+    color: var(--sl-color-green-500);
+  }
+}

@@ -6,4 +6,8 @@
   sl-button.supply {
     @apply w-full;
   }
+  sl-card {
+    @apply w-full text-sm;
+    --border-radius: 0;
+  }
 }

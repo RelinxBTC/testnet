@@ -13,13 +13,19 @@ import '@shoelace-style/shoelace/dist/components/button/button'
 import '@shoelace-style/shoelace/dist/components/divider/divider'
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip'
 import '@shoelace-style/shoelace/dist/components/progress-bar/progress-bar'
+import '@shoelace-style/shoelace/dist/components/card/card'
+import '@shoelace-style/shoelace/dist/components/tree/tree'
+import '@shoelace-style/shoelace/dist/components/tree-item/tree-item'
 import { SlProgressBar } from '@shoelace-style/shoelace'
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js'
 import './components/connect.ts'
+import './components/accs'
 import './components/supply'
 import './components/withdraw'
 import './components/utxos'
+import './components/commitmentList'
 import { SupplyPanel } from './components/supply'
+import { AccsPanel } from './components/accs'
 import { WithdrawPanel } from './components/withdraw'
 import { UtxoRow } from './components/utxos'
 import { Unsubscribe, walletState } from './lib/walletState'
@@ -46,6 +52,7 @@ globalThis.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',
 @customElement('app-main')
 export class AppMain extends LitElement {
   @state() walletBalance = 0
+  @state() accsPanel: Ref<AccsPanel> = createRef<AccsPanel>()
   @state() supplyPanel: Ref<SupplyPanel> = createRef<SupplyPanel>()
   @state() withdrawPanel: Ref<WithdrawPanel> = createRef<WithdrawPanel>()
   @state() UtxoRow: Ref<UtxoRow> = createRef<UtxoRow>()
@@ -116,7 +123,7 @@ export class AppMain extends LitElement {
   async busyUpdater() {
     while (true) {
       await this.updateAll()
-      await new Promise((r) => setTimeout(r, 60000))
+      await new Promise((r) => setTimeout(r, 180000))
     }
   }
 
@@ -171,7 +178,7 @@ export class AppMain extends LitElement {
         <div class="mt-5 flex sm:my-auto space-x-4">
           <sl-button
             class="supply"
-            variant=${this.walletBalance <= 0 ? 'default' : 'success'}
+            .variant=${this.walletBalance <= 0 ? 'default' : 'success'}
             @click=${() => this.supply()}
             ?disabled=${this.walletBalance <= 0}
             pill
@@ -192,15 +199,19 @@ export class AppMain extends LitElement {
         </div>
       </div>
       <div class="grid grid-cols-5 space-y-5 sm:grid-cols-12 sm:space-x-5 sm:space-y-0">
-        <div class="col-span-7">
-          <div class="relative panel !rounded-none">
-            <div class="text-xs mb-3 flex justify-between items-center">
+        <div class="col-span-8">
+          <sl-card class="[&::part(body)]:p-0">
+            <div slot="header" class="flex justify-between items-center font-medium">
               <span
                 >${when(
                   this.utxos != undefined,
                   () => html`${this.utxos?.length} deposits, current block height: ${this.height}`,
                   () =>
-                    this.protocolBalance == undefined ? html`Connect wallet to continue` : html`Loading Deposits...`
+                    when(
+                      !this.updating,
+                      () => html`Connect wallet to load your deposits`,
+                      () => html`Loading Deposits...`
+                    )
                 )}</span
               >
               <sl-button
@@ -214,20 +225,36 @@ export class AppMain extends LitElement {
                 Refresh
               </sl-button>
             </div>
-            <ul>
+            <sl-tree class="max-h-96 overflow-auto">
               ${when(
                 this.utxos != undefined && this.utxos.length == 0,
-                () => html`<div style="font-size: 18px;"><sl-icon name="file-earmark-x"></sl-icon>No Data Found.</div> `
+                () =>
+                  html`<div class="text-base p-2 space-x-1">
+                    <sl-icon name="file-earmark-x"></sl-icon><span>No Data Found.</span>
+                  </div>`
               )}
               ${map(
                 this.utxos,
-                (utxo) => html`<li><utxo-row class="py-4 flex items-center" .utxo=${utxo}></utxo-row></li>`
+                (utxo) =>
+                  html`<sl-tree-item
+                    class="noexpand even:bg-[var(--sl-color-neutral-100)]"
+                    @click=${() => {
+                      this.accsPanel.value!.utxo = utxo
+                      this.accsPanel.value!.show()
+                    }}
+                  >
+                    <utxo-row class="p-4 flex items-center w-full" .utxo=${utxo}></utxo-row>
+                  </sl-tree-item>`
               )}
-            </ul>
-          </div>
+            </sl-tree>
+          </sl-card>
+          <sl-card class="mt-4 [&::part(body)]:px-2">
+            <div slot="header" class="font-medium">Recent ACCs (Accountable Custody Commitments)</div>
+            <commitment-list></commitment-list>
+          </sl-card>
         </div>
 
-        <div class="col-span-5 space-y-2">
+        <div class="col-span-4 space-y-2">
           <div class="relative panel font-medium">
             <span class="text-xs text-sl-neutral-600">Wallet Balance</span>
             <div class="flex text-xl my-1 items-center">
@@ -250,6 +277,7 @@ export class AppMain extends LitElement {
       </div>
       <supply-panel ${ref(this.supplyPanel)}></supply-panel>
       <withdraw-panel ${ref(this.withdrawPanel)}></withdraw-panel>
+      <accs-panel ${ref(this.accsPanel)}></accs-panel>
     </div>`
   }
 }

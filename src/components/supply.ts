@@ -2,7 +2,7 @@ import { LitElement, html, unsafeCSS } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
 import { Ref, createRef, ref } from 'lit/directives/ref.js'
 import baseStyle from '/src/base.css?inline'
-import style from './supply.css?inline'
+import style from './drawer.css?inline'
 import '@shoelace-style/shoelace/dist/components/button/button'
 import '@shoelace-style/shoelace/dist/components/input/input'
 import '@shoelace-style/shoelace/dist/components/drawer/drawer'
@@ -83,8 +83,8 @@ export class SupplyPanel extends LitElement {
 
   render() {
     return html`
-      <sl-drawer ${ref(this.drawer)} placement=${this.placement} class="[&::part(body)]:pt-0">
-        <span slot="label" style="color:var(--sl-color-green-500)">Supply ${this.coin}</span>
+      <sl-drawer ${ref(this.drawer)} placement=${this.placement}>
+        <span slot="label">Supply ${this.coin}</span>
         <sl-input
           ${ref(this.inputAmount)}
           style="--sl-input-spacing-large: 0.2rem;"
@@ -138,7 +138,7 @@ export class SupplyPanel extends LitElement {
         <sl-divider style="--spacing: 1rem;"></sl-divider>
         <h3 class="text-sl-neutral-600">Self-Custody Address</h3>
         <span class="font-mono break-words text-[var(--sl-color-neutral-700)]"
-          >${until(walletState.getDepositAddress(this.blocks))}</span
+          >${until(walletState.getDepositAddress(this.blocks), html`<sl-spinner></sl-spinner>`)}</span
         >
         <h3 class="mt-2 text-sl-neutral-600">Self-Custody Script</h3>
         <pre

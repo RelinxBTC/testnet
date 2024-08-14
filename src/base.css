@@ -9,4 +9,7 @@
   sl-divider {
     border-top: solid var(--width) var(--color);
   }
+  sl-tree-item.noexpand {
+    @apply [&::part(expand-button)]:hidden [&::part(label)]:w-full;
+  }
 }

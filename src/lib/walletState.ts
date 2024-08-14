@@ -38,11 +38,22 @@ export type UTXO = {
 const defaultBlocks = [1, 10, 100]
 
 class WalletState extends State {
+  /** type of last connected wallet, subscribe with `wallet` */
   @storage({ key: 'wallet' }) @property() wallet?: WalletType
+  /** cache on going updates */
   private promises: Record<string, Promise<any>> = {}
+
+  public mempoolApiUrl(path: string): string {
+    return mempoolApiUrl(path, this._network)
+  }
+  public get mempoolUrl(): string {
+    if (this._network == 'devnet') return 'http://localhost:8083'
+    return 'https://mempool.space' + (this._network != 'livenet' ? `/${this._network}` : '')
+  }
 
   // ---- address ----
   @property({ skipReset: true }) private _address?: string
+  /** connected address, subscribe with `_address` */
   public get address(): string | undefined {
     if (!this._address) this.updateAddress()
     return this._address
@@ -65,16 +76,16 @@ class WalletState extends State {
 
   // ---- network ----
   @property() private _network?: Network
+  /** connected network, subscribe with `_network` */
   public get network(): Network | undefined {
     if (this._network) return this._network
     this.updateNetwork()
   }
   public async getNetwork() {
-    if (this._network) return this._network
-    return await this.updateNetwork()
+    return this._network ?? this.updateNetwork()
   }
 
-  public async updateNetwork() {
+  public async updateNetwork(): Promise<Network> {
     return (this.promises['network'] ??= this.getConnector()
       .then((connector) => connector.network)
       .then((network) => (this._network = network))
@@ -85,26 +96,18 @@ class WalletState extends State {
     this.updateNetwork()
   }
 
-  public mempoolApiUrl(path: string): string {
-    return mempoolApiUrl(path, this._network)
-  }
-  public get mempoolUrl(): string {
-    if (this._network == 'devnet') return 'http://localhost:8083'
-    return 'https://mempool.space' + (this._network != 'livenet' ? `/${this._network}` : '')
-  }
-
   // ---- public key ----
   @property() private _publicKey?: string
+  /** connected public key, subscribe with `_publicKey` */
   public get publicKey(): string | undefined {
     if (this._publicKey) return this._publicKey
     this.updatePublicKey()
   }
   public async getPublicKey() {
-    if (this._publicKey) return this._publicKey
-    return await this.updatePublicKey()
+    return this._publicKey ?? this.updatePublicKey()
   }
 
-  public async updatePublicKey() {
+  public async updatePublicKey(): Promise<string> {
     return (this.promises['publicKey'] ??= this.getConnector()
       .then((connector) => connector.publicKey)
       .then((pubKey) => (this._publicKey = pubKey))
@@ -113,13 +116,14 @@ class WalletState extends State {
 
   // ---- MPC public key ----
   @property() private _mpcPublicKey?: string
+  /** mpc public key, subscribe with `_mpcPublicKey` */
   public get mpcPublicKey(): string | undefined {
     if (this._mpcPublicKey) return this._mpcPublicKey
     this.updateMpcPublicKey()
   }
 
-  public getMpcPublicKey(): Promise<string> {
-    return this._mpcPublicKey ? Promise.resolve(this._mpcPublicKey) : this.updateMpcPublicKey()
+  public async getMpcPublicKey(): Promise<string> {
+    return this._mpcPublicKey ?? this.updateMpcPublicKey()
   }
 
   public updateMpcPublicKey(): Promise<string> {
@@ -131,6 +135,11 @@ class WalletState extends State {
 
   // ---- deposit address ----
   @property({ type: Object }) private _depositAddresses?: Record<number, string>
+  /**
+   * deposit addresses with 1 block locking, subscribe with `_depositAddresses`
+   * @see getDepositAddress
+   * @see getDepositAddresses
+   */
   public get depositAddress(): string | undefined {
     if (this._depositAddresses && 1 in this._depositAddresses) return this._depositAddresses[1]
     this.updateDepositAddress()
@@ -170,6 +179,7 @@ class WalletState extends State {
 
   // ---- balance ----
   @property({ type: Object }) private _balance?: Balance
+  /** wallet balance, subscribe with `_balance` */
   public get balance(): Balance | undefined {
     if (this._balance) return this._balance
     this.updateBalance().catch(console.debug)
@@ -192,6 +202,7 @@ class WalletState extends State {
 
   // ---- protocol balance ----
   @property({ type: Object }) private _protocolBalance?: Balance
+  /** Protocol balance, subscribe with `_protocolBalance` */
   public get protocolBalance(): Balance | undefined {
     if (this._protocolBalance) return this._protocolBalance
     this.updateProtocolBalance()
@@ -223,12 +234,13 @@ class WalletState extends State {
 
   // ---- height ----
   @property({ type: Object }) private _height?: number
+  /** block height, subscribe with `_height` */
   public get height(): number | undefined {
     if (this._height) return this._height
-    this.getHeight().catch(console.debug)
+    this.updateHeight().catch(console.debug)
   }
 
-  public async getHeight() {
+  public async updateHeight(): Promise<number> {
     return (this.promises['height'] ??= fetch(this.mempoolApiUrl('/api/blocks/tip/height'))
       .then(getJson)
       .then((height) => (this._height = height))
@@ -237,6 +249,7 @@ class WalletState extends State {
 
   // --- utxos ----
   @property({ type: Array }) private _utxos?: UTXO[]
+  /** deposit utxos, subscribe with `_utxos` */
   public get utxos(): UTXO[] | undefined {
     if (this._utxos) return this._utxos
     this.updateUTXOs()
@@ -248,7 +261,7 @@ class WalletState extends State {
         (depositAddresses) => (
           console.debug('updating utxos with addresses', depositAddresses),
           Promise.all([
-            this.getHeight(),
+            this.updateHeight(),
             Promise.all(
               Object.keys(depositAddresses).map((block) =>
                 fetch(this.mempoolApiUrl(`/api/address/${depositAddresses[Number(block)]}/utxo`))
@@ -280,6 +293,27 @@ class WalletState extends State {
       )
       .then((utxos) => (this._utxos = utxos))
       .finally(() => delete this.promises['utxos']))
+  }
+
+  // --- signatures ---
+  /**
+   * signatures made from accountable commitments, with `txid:nonce` as key,
+   * subscribe with `signatures`.
+   */
+  @property({ type: Object }) signatures?: Record<string, Promise<any>>
+  /**
+   * @param txid scc tx id
+   * @param nonce commitment nonce
+   * @see signatures
+   */
+  public getSignatures(txid: string, nonce: number) {
+    return this.signatures?.[`${txid}:${nonce}`] ?? this.updateSignatures(txid, nonce)
+  }
+  public updateSignatures(txid: string, nonce: number) {
+    const p = fetch(`/api/signatures?txid=${txid}&nonce=${nonce.toString(16)}`).then(getJson)
+    return p.then(
+      () => ((this.signatures = { ...this.signatures, [`${txid}:${nonce}`]: p }), console.log('update signatures'), p)
+    )
   }
 
   // --- wallet connector ----
@@ -340,4 +374,16 @@ class WalletState extends State {
   }
 }
 
+/**
+ * Properties in {walletState} can be fetched via public `getter` and async
+ * `getXXX`. Can also be forced to update via async `updateXXX` and subscribed
+ * with `_XXX` for updates if defined with private `@property`.
+ * @example
+ * // string | undefined
+ * const address = walletState.address
+ * // Promise<string>
+ * const address = await walletState.getAddress()
+ * // subscription
+ * walletState.subscribe(callback, "_address")
+ */
 export const walletState = new WalletState()

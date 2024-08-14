@@ -29,12 +29,18 @@ dependencies:
   '@scure/bip32':
     specifier: ^1.3.3
     version: 1.4.0
+  '@scure/bip39':
+    specifier: ^1.3.0
+    version: 1.3.0
   '@scure/btc-signer':
     specifier: ^1.3.2
     version: 1.3.2
   '@shoelace-style/shoelace':
     specifier: ^2.12.0
     version: 2.15.1(@types/react@18.3.3)
+  '@vercel/kv':
+    specifier: ^2.0.0
+    version: 2.0.0
   '@vercel/node':
     specifier: ^3.0.15
     version: 3.1.7
@@ -1127,6 +1133,13 @@ packages:
       '@scure/base': 1.1.6
     dev: false
 
+  /@scure/bip39@1.3.0:
+    resolution: {integrity: sha512-disdg7gHuTDZtY+ZdkmLpPCk7fxZSu3gBiEGuoC1XYxv9cGx3Z6cpTggCgW6odSOOIXCiDjuGejW+aJKCY/pIQ==}
+    dependencies:
+      '@noble/hashes': 1.4.0
+      '@scure/base': 1.1.6
+    dev: false
+
   /@scure/btc-signer@1.3.2:
     resolution: {integrity: sha512-BmcQHvxaaShKwgbFC0vDk0xzqbMhNtNmgXm6u7cz07FNtGsVItUuHow6NbgHmc+oJSBZJRym5dz8+Uu0JoEJhQ==}
     dependencies:
@@ -1232,6 +1245,12 @@ packages:
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
     dev: false
 
+  /@upstash/redis@1.34.0:
+    resolution: {integrity: sha512-TrXNoJLkysIl8SBc4u9bNnyoFYoILpCcFJcLyWCccb/QSUmaVKdvY0m5diZqc3btExsapcMbaw/s/wh9Sf1pJw==}
+    dependencies:
+      crypto-js: 4.2.0
+    dev: false
+
   /@vercel/build-utils@7.11.0:
     resolution: {integrity: sha512-UFrx1hNIjNJJkd0NZrYfaOrmcWhQmrVsbKe9o3L9jX9J1iufG685wIZ9tFCKKC0Fa2HWbNDNzNxrE5SCAS2lyA==}
     dev: true
@@ -1299,6 +1318,13 @@ packages:
       '@vercel/static-config': 3.0.0
       ts-morph: 12.0.0
     dev: true
+
+  /@vercel/kv@2.0.0:
+    resolution: {integrity: sha512-zdVrhbzZBYo5d1Hfn4bKtqCeKf0FuzW8rSHauzQVMUgv1+1JOwof2mWcBuI+YMJy8s0G0oqAUfQ7HgUDzb8EbA==}
+    engines: {node: '>=14.6'}
+    dependencies:
+      '@upstash/redis': 1.34.0
+    dev: false
 
   /@vercel/next@4.2.0:
     resolution: {integrity: sha512-2KSXdPHpfPWaf0tKTBxOWvdc8e9TPNARjmqtgYUsrl1TVaBNFsZ0GV0kWaVLEw4o7CWfREt8ZY064sNVb1BcAQ==}
@@ -1921,6 +1947,10 @@ packages:
       shebang-command: 2.0.0
       which: 2.0.2
     dev: true
+
+  /crypto-js@4.2.0:
+    resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
+    dev: false
 
   /css-blank-pseudo@6.0.2(postcss@8.4.38):
     resolution: {integrity: sha512-J/6m+lsqpKPqWHOifAFtKFeGLOzw3jR92rxQcwRUfA/eTuZzKfKlxOmYDx2+tqOPQAueNvBiY8WhAeHu5qNmTg==}

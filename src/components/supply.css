@@ -1,7 +1,0 @@
-:host {
-  @media (max-width: 640px) {
-    sl-drawer {
-      --size: 30rem;
-    }
-  }
-}
