@@ -20,7 +20,7 @@ export class Commitments extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback()
-    this.loadCommitments()
+    this.updateCommitments()
     this.signatures = walletState.signatures
     this.unsubscribe = walletState.subscribe((_, v) => (this.signatures = v), 'signatures')
   }
@@ -34,7 +34,7 @@ export class Commitments extends LitElement {
     return this.signatures?.[`${txid}:${nonce}`] ?? walletState.getSignatures(txid, nonce)
   }
 
-  private loadCommitments() {
+  public updateCommitments() {
     this.commitments = walletState
       .getNetwork()
       .then((network) => fetch(`/api/commitments?network=${network}`))
@@ -53,7 +53,7 @@ export class Commitments extends LitElement {
                 const tx = btc.Transaction.fromPSBT(hexToBytes(commitment.psbt))
                 const output = tx.getOutput(0)
                 return html`<sl-tree-item
-                  class="noexpand border-t border-t-[var(--sl-color-neutral-100)] first:border-t-0 "
+                  class="noexpand border-t border-dashed border-t-[var(--sl-color-neutral-200)] first:border-t-0 "
                   ><div class="flex space-x-1 h-8 w-full text-sm">
                     <div class="flex-none m-auto flex items-center">
                       <sl-icon outline name="currency-bitcoin" class="h-full"></sl-icon>

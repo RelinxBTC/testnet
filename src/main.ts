@@ -31,6 +31,7 @@ import { UtxoRow } from './components/utxos'
 import { Unsubscribe, walletState } from './lib/walletState'
 import { formatUnits } from './lib/units'
 import { Balance } from './lib/wallets'
+import { Commitments } from './components/commitmentList'
 
 setBasePath(import.meta.env.MODE === 'development' ? 'node_modules/@shoelace-style/shoelace/dist' : '/')
 
@@ -57,6 +58,7 @@ export class AppMain extends LitElement {
   @state() withdrawPanel: Ref<WithdrawPanel> = createRef<WithdrawPanel>()
   @state() UtxoRow: Ref<UtxoRow> = createRef<UtxoRow>()
   @state() progress: Ref<SlProgressBar> = createRef<SlProgressBar>()
+  @state() commitmentList: Ref<Commitments> = createRef<Commitments>()
   @state() protocolBalance?: Balance
   @state() utxos?: []
   @state() height?: number
@@ -113,6 +115,7 @@ export class AppMain extends LitElement {
       this.protocolBalance = undefined
       this.utxos = undefined
     }
+    this.commitmentList.value?.updateCommitments()
     return Promise.all([
       walletState.updateBalance(),
       walletState.updateProtocolBalance(),
@@ -250,7 +253,7 @@ export class AppMain extends LitElement {
           </sl-card>
           <sl-card class="mt-4 [&::part(body)]:px-2">
             <div slot="header" class="font-medium">Recent ACCs (Accountable Custody Commitments)</div>
-            <commitment-list></commitment-list>
+            <commitment-list ${ref(this.commitmentList)}></commitment-list>
           </sl-card>
         </div>
 

@@ -105,7 +105,7 @@ export class AccsPanel extends LitElement {
                 : map(
                     Object.entries(commitments ?? {}),
                     ([key, value]) =>
-                      html`<li class="border-t border-t-[var(--sl-color-neutral-100)] first:border-t-0">
+                      html`<li class="border-t border-dashed border-t-[var(--sl-color-neutral-200)] first:border-t-0">
                         <accs-commitment
                           class="flex space-x-1 h-8"
                           .rootKey=${this.rootKey}
