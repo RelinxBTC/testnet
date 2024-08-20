@@ -6,26 +6,20 @@ import { hexToBytes } from '@noble/hashes/utils'
 import { Unsubscribe, walletState } from '../lib/walletState'
 import { btcNetwork } from '../../lib/network'
 import { AccsPanel } from './accs'
-import * as mod from '@noble/curves/abstract/modular'
+import { modN, invN } from '../../lib/mod'
 import { bytesToNumberBE } from '@noble/curves/abstract/utils'
 import { secp256k1 } from '@noble/curves/secp256k1'
 import { toast } from '../lib/toast'
 import { SlButton } from '@shoelace-style/shoelace'
 import { until } from 'lit/directives/until.js'
-
-function modN(a: bigint) {
-  return mod.mod(a, secp256k1.CURVE.n)
-}
-function invN(a: bigint) {
-  return mod.invert(a, secp256k1.CURVE.n)
-}
+import { RecoveredSignatureType } from '@noble/curves/abstract/weierstrass'
 
 @customElement('accs-commitment')
 export class AccsCommitment extends LitElement {
   static styles = [unsafeCSS(baseStyle)]
   @property() txid?: string // txid that commitment relates to
   @property() n?: number // nonce of commitment
-  @property() s?: string // s in signature
+  @property() s?: RecoveredSignatureType // signature
   @property() psbt?: string // commitment psbt
   @property() rootKey?: Uint8Array // txid root key
   @state() keyMatches = false
@@ -58,17 +52,15 @@ export class AccsCommitment extends LitElement {
   }
 
   private sign(msg: string) {
-    const [priv, nonce, s] = [this.priv, this.n, this.s]
+    const [priv, nonce, signature] = [this.priv, this.n, this.s]
     return (async () => {
-      if (!priv || !nonce || !s) throw new Error('not ready')
-      const msgHash = secp256k1.CURVE.hash(msg)
+      if (!priv || !nonce || !signature) throw new Error('not ready')
+      const { r, s } = signature
       const a = bytesToNumberBE(priv)
-      const nonceHash = secp256k1.CURVE.hash(new Uint8Array([nonce]))
-      const signature = secp256k1.sign(nonceHash, priv)
-      // s = (r*a + m) / k
-      if (signature.s.toString(16) != s) throw new Error('signature mismatch')
-      // r2 = (r1*a + m1 - m2) / a
-      return modN(modN(signature.r * a + bytesToNumberBE(nonceHash) - bytesToNumberBE(msgHash)) * invN(a))
+      const k = modN(modN(r * a + bytesToNumberBE(secp256k1.CURVE.hash(new Uint8Array([nonce])))) * invN(s))
+      const m = bytesToNumberBE(secp256k1.CURVE.hash(msg))
+      // r=G*k=G*(r2*a+m) => r2=(k-m)/a
+      return modN(modN(k - m) * invN(a))
     })()
       .then((r) =>
         fetch(`/api/signatures?txid=${this.txid}&nonce=${nonce!.toString(16)}&msg=${msg}`, {

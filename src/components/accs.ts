@@ -112,7 +112,7 @@ export class AccsPanel extends LitElement {
                           .psbt=${value.psbt}
                           .txid=${this.utxo?.txid}
                           .n=${parseInt(key, 16)}
-                          .s=${value.s}
+                          .s=${secp256k1.Signature.fromCompact(value.s).addRecoveryBit(value.r)}
                         ></accs-commitment>
                       </li>`
                   )
@@ -295,7 +295,7 @@ OP_CHECKMULTISIG</pre
         const tx = new btc.Transaction()
         tx.addInput({
           ...p2tr,
-          txid: hexToBytes(utxo.hash).reverse(),
+          txid: utxo.id,
           index: 0,
           witnessUtxo: { script: p2tr.script, amount }
         })
@@ -326,25 +326,19 @@ OP_CHECKMULTISIG</pre
             return walletState.connector!.signPsbt(bytesToHex(tx.toPSBT()), { autoFinalized: false, toSignInputs })
           })
           .then((psbtHex) => {
-            const signature = secp256k1.sign(
-              secp256k1.CURVE.hash(new Uint8Array([this.commitmentNonce!])),
-              this.commitmentKey!
-            )
-            return fetch(
-              `/api/commitments?txid=${this.utxo?.txid}&nonce=${this.commitmentNonce?.toString(16)}&network=${
-                walletState.network
-              }`,
-              {
-                method: 'POST',
-                body: JSON.stringify({
-                  psbt: psbtHex,
-                  txid: this.utxo?.txid,
-                  nonce: this.commitmentNonce?.toString(16),
-                  pub: bytesToHex(this.rootKeyPub!),
-                  s: signature.s.toString(16)
-                })
-              }
-            )
+            const nonceHash = secp256k1.CURVE.hash(new Uint8Array([this.commitmentNonce!]))
+            const signature = secp256k1.sign(nonceHash, this.commitmentKey!)
+            return fetch(`/api/commitments?network=${walletState.network}`, {
+              method: 'POST',
+              body: JSON.stringify({
+                psbt: psbtHex,
+                txid: this.utxo?.txid,
+                nonce: this.commitmentNonce?.toString(16),
+                pub: bytesToHex(this.rootKeyPub!),
+                s: signature.toCompactHex(),
+                r: signature.recovery
+              })
+            })
           })
           .then((res) => {
             if (res.status == 200) {

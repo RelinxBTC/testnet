@@ -17,7 +17,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
     const network = request.query['network'] as Network
     if (!pubKey) throw new Error('missing public key')
     if (!address) throw new Error('missing output address')
-    if (!address) throw new Error('missing network')
+    if (!network) throw new Error('missing network')
 
     var value = 0
     var utxoList

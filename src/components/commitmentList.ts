@@ -9,7 +9,8 @@ import { btcNetwork } from '../../lib/network'
 import { until } from 'lit/directives/until.js'
 import { map } from 'lit/directives/map.js'
 import { formatUnits } from '../lib/units'
-import { toast } from '../lib/toast'
+import { toastImportant } from '../lib/toast'
+import { SlButton } from '@shoelace-style/shoelace'
 
 @customElement('commitment-list')
 export class Commitments extends LitElement {
@@ -39,6 +40,55 @@ export class Commitments extends LitElement {
       .getNetwork()
       .then((network) => fetch(`/api/commitments?network=${network}`))
       .then(getJson)
+  }
+
+  private slash(ev: Event, commitment: any) {
+    const btn = (ev.target as Element).closest('sl-button') as SlButton
+    btn.loading = true
+    var alert: any
+    return Promise.all([walletState.getAddress(), walletState.getNetwork()])
+      .then(([address, network]) => {
+        if (!address) throw new Error('connect wallet to continue')
+        alert = toastImportant('Waiting for MPC signature').alert
+        return fetch(
+          `/api/slash?txid=${commitment.txid}&nonce=${commitment.nonce}&address=${address}&network=${network}`
+        ).then(getJson)
+      })
+      .then((txs: Array<string>) => {
+        alert.hide()
+        alert = toastImportant('Broadcasting transactions').alert
+        return Promise.all(
+          txs.map((hex) =>
+            fetch(walletState.mempoolApiUrl('/api/tx'), {
+              method: 'POST',
+              body: hex
+            }).then((res) => {
+              if (res.status == 200) {
+                return res.text()
+              }
+              return res.text().then((text) => {
+                console.error(res.status, text, btc.Transaction.fromRaw(hexToBytes(hex)).hash, res)
+                throw new Error(text)
+              })
+            })
+          )
+        )
+      })
+      .then((hashes: Array<string>) =>
+        toastImportant(
+          `Slash transactions ${hashes
+            .map((hash) => `<a href="${walletState.mempoolUrl}/tx/${hash}">${hash}</a>`)
+            .join(' ')} broadcasted.`
+        )
+      )
+      .catch((e) => {
+        console.error(e)
+        toastImportant(e)
+      })
+      .finally(() => {
+        alert?.hide()
+        btn.loading = false
+      })
   }
 
   render() {
@@ -80,7 +130,7 @@ export class Commitments extends LitElement {
                                 ?disabled=${!(signatures?.up && signatures?.down)}
                                 variant="text"
                                 size="small"
-                                @click=${() => toast('Ready to slash...')}
+                                @click=${(ev: Event) => this.slash(ev, commitment)}
                                 ><sl-icon name="journal-x"></sl-icon
                               ></sl-button>
                             </sl-tooltip>
