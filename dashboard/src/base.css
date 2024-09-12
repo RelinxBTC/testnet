@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .text-sl-neutral-600 {
+    color: var(--sl-color-neutral-600);
+  }
+  sl-divider {
+    border-top: solid var(--width) var(--color);
+  }
+  sl-tree-item.noexpand {
+    @apply [&::part(expand-button)]:hidden [&::part(label)]:w-full;
+  }
+}

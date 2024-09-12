@@ -1,0 +1,13 @@
+:host {
+  .panel {
+    @apply rounded p-6 px-10;
+    background-color: var(--sl-color-neutral-50);
+  }
+  sl-button.supply {
+    @apply w-full;
+  }
+  sl-card {
+    @apply w-full text-sm;
+    --border-radius: 0;
+  }
+}

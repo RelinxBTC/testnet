@@ -7,7 +7,7 @@ import { customElement, property } from 'lit/decorators.js'
 import { when } from 'lit/directives/when.js'
 import style from './utxo.css?inline'
 import baseStyle from '/src/base.css?inline'
-import { formatUnits } from '../lib/units'
+import { formatUnits, getElapsedTime } from '../lib/units'
 import { UTXO, walletState } from '../lib/walletState'
 import { withdrawMPC, withdrawWithoutMPC } from '../lib/withdraw'
 
@@ -29,32 +29,6 @@ export class UtxoRow extends LitElement {
       await withdrawWithoutMPC(utxos)
       this.buttonStatus = false
     }
-  }
-
-  getElapsedTime(): String {
-    if (this.utxo?.status.block_time ?? 0 > 0) {
-      var time = new Date().getTime()
-      var delta = (time - 1000 * (this.utxo?.status.block_time ?? 0)) / 1000
-      console.log('delta:' + delta)
-      var d = Math.floor(delta / 60 / 60 / 24)
-      var h = Math.floor((delta / 60 / 60) % 24)
-      var m = Math.floor((delta / 60) % 60)
-      var date = false
-      var result = ''
-      if (d > 0) {
-        result = result + d + ' d '
-        date = true
-      }
-      if (h > 0) {
-        result = result + h + ' h '
-      }
-      if (!date) {
-        result = result + m + ' m '
-      }
-      result = result + 'ago'
-      return result
-    }
-    return 'N/A'
   }
 
   render() {
@@ -92,7 +66,7 @@ export class UtxoRow extends LitElement {
         </div>
       </div>
       <div class="ml-3 flex-auto w-40 text-xs">
-        ${this.getElapsedTime()}<br />
+        ${getElapsedTime(this.utxo?.status.block_time)}<br />
         <span class="text-neutral-400">${this.utxo?.status.lock_blocks} blocks locking</span>
       </div>
       <div class="ml-3 flex-auto text-s">
