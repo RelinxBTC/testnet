@@ -1,6 +1,6 @@
 import { LitElement, html, unsafeCSS } from 'lit'
 import { customElement, state } from 'lit/decorators.js'
-import { Ref, createRef, ref } from 'lit/directives/ref.js'
+import { Ref, createRef } from 'lit/directives/ref.js'
 import baseStyle from './base.css?inline'
 import style from './main.css?inline'
 import { when } from 'lit/directives/when.js'

@@ -23,10 +23,10 @@ export function getElapsedTime(timer: any): String {
     if (h > 0) {
       result = result + h + ' h '
     }
-    if (m > 0) {
+    if (!date && m > 0) {
       result = result + m + ' m '
     }
-    if (s > 0) {
+    if (!date && s > 0) {
       result = result + s + ' s '
     }
     result = result + 'ago'
