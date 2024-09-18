@@ -70,13 +70,15 @@ If you see this error above, you need to downgrade your DockerDesktop. Version 4
 # shut down your local docker containers
 docker compose down
 # then, check your local volumes starting with `devnet_`
-docker volume ls |grep devnet_
+docker volume ls 
+...
 local     devnet_bitcoin-data
 local     devnet_electrs-data
 local     devnet_mempool-api-cache
 local     devnet_mysql-data
+local     stacks_stacks-data
 # delete them all
-docker volume rm devnet_bitcoin-data devnet_electrs-data devnet_mempool-api-cache devnet_mysql-data
+docker volume rm devnet_bitcoin-data devnet_electrs-data devnet_mempool-api-cache devnet_mysql-data stacks_stacks-data
 # now, run the docker compose command
 docker compose up -d
 # exec the commands
