@@ -16,13 +16,20 @@ import '@shoelace-style/shoelace/dist/components/tree/tree'
 import '@shoelace-style/shoelace/dist/components/tree-item/tree-item'
 import { SlProgressBar } from '@shoelace-style/shoelace'
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js'
+import { AccsPanel } from '../../src/components/accs'
+import { Balance } from '../../src/lib/wallets'
+import { formatUnits } from '../../src/lib/units'
+import { SupplyPanel } from '../../src/components/supply'
+import { WithdrawPanel } from '../../src/components/withdraw'
 import './components/provider'
 import '../../src/components/connect.ts'
+import '../../src/components/utxos.ts'
 import './components/timer.ts'
+import { map } from 'lit/directives/map.js'
 
 import { Unsubscribe, walletState } from '../../src/lib/walletState'
 
-setBasePath(import.meta.env.MODE === 'development' ? 'node_modules/@shoelace-style/shoelace/dist' : '/')
+setBasePath(import.meta.env.MODE === 'development' ? '../node_modules/@shoelace-style/shoelace/dist' : '/')
 
 function darkMode(enable = true) {
   if (enable) {
@@ -44,6 +51,10 @@ export class DashboardMain extends LitElement {
   @state() infomation: any = {}
   @state() walletBalance = 0
   @state() progress: Ref<SlProgressBar> = createRef<SlProgressBar>()
+  @state() accsPanel: Ref<AccsPanel> = createRef<AccsPanel>()
+  @state() supplyPanel: Ref<SupplyPanel> = createRef<SupplyPanel>()
+  @state() withdrawPanel: Ref<WithdrawPanel> = createRef<WithdrawPanel>()
+  @state() protocolBalance?: Balance
   @state() utxos?: []
   @state() height?: number
   @state() updating?: boolean
@@ -59,7 +70,7 @@ export class DashboardMain extends LitElement {
     this.infomation['ONLINE'] = '789'
     this.infomation['OFFLINE'] = '345'
     this.infomation['BITCOIN BLOCKHEIGHT'] = 'Unknown'
-    this.infomation['EACH BTC AMOUNT AVG.'] = '12.5765 BTC'
+    this.infomation['EACH AMOUNT AVG.'] = '12.5765 BTC'
     this.infomation['BLOCK LOCKED AVG.'] = '150'
     this.infomation['LAST COMMIT'] = (Date.now() - Math.random() * 20000) / 1000
 
@@ -73,6 +84,9 @@ export class DashboardMain extends LitElement {
             break
           case '_utxos':
             this.utxos = v
+            break
+          case '_protocolBalance':
+            this.protocolBalance = v
             break
           case '_height':
             this.height = v
@@ -91,6 +105,14 @@ export class DashboardMain extends LitElement {
     super.disconnectedCallback()
   }
 
+  get balanceUnconfirmed() {
+    return walletState.balance?.unconfirmed ?? 0
+  }
+
+  get totalBalance() {
+    return (walletState.balance?.total ?? 0) + (this.protocolBalance?.total ?? 0)
+  }
+
   updateAll(clearValues = false) {
     this.updating = true
     if (clearValues) {
@@ -105,6 +127,14 @@ export class DashboardMain extends LitElement {
     ]).finally(() => (this.updating = false))
   }
 
+  supply() {
+    this.supplyPanel.value?.show()
+  }
+
+  withdraw() {
+    this.withdrawPanel.value?.show()
+  }
+
   async busyUpdater() {
     while (true) {
       await this.updateAll()
@@ -113,7 +143,7 @@ export class DashboardMain extends LitElement {
   }
 
   render() {
-    return html` <div class="mx-auto max-w-screen-lg px-6 lg:px-0 pb-6">
+    return html` <div class="mx-auto max-w-screen-2xl px-6 lg:px-0 pb-6">
       <nav class="flex justify-between py-4">
         <div class="flex">
           <a href="#" class="-m-1.5 p-1.5">
@@ -125,23 +155,134 @@ export class DashboardMain extends LitElement {
         </div>
       </nav>
       <div class="grid grid-cols-4 space-y-4 sm:grid-cols-12 sm:space-x-1 sm:space-y-1">
-        <div class="col-span-12"></div>
-        ${Object.entries(this.infomation ?? {}).map(
-          ([key, value]) =>
-            html` <div class="col-span-3 space-y-1">
-              <div class="relative panel font-medium">
-                <span class="text-xs text-sl-neutral-600">${key}</span>
-                ${when(
-                  key == 'LAST COMMIT',
-                  () => html`<div class="flex text-2xl items-center"><timer-ago timestamp=${value}></timer-ago></div>`
-                )}
-                ${when(key != 'LAST COMMIT', () => html`<div class="flex text-2xl items-center">${value}</div>`)}
-              </div>
-            </div>`
-        )}
+        <div class="col-span-7">
+          <div class="grid grid-cols-4 space-y-4 sm:grid-cols-12 sm:space-x-1 sm:space-y-1">
+            <div class="col-span-12"></div>
+            ${Object.entries(this.infomation ?? {}).map(
+              ([key, value]) =>
+                html` <div class="col-span-3 space-y-1">
+                  <div class="relative panel font-medium">
+                    <span class="text-xs text-sl-neutral-600">${key}</span>
+                    ${when(
+                      key == 'LAST COMMIT',
+                      () => html`<timer-ago class="flex text-2xl items-center" timestamp=${value}></timer-ago>`
+                    )}
+                    ${when(key != 'LAST COMMIT', () => html`<div class="flex text-2xl items-center">${value}</div>`)}
+                  </div>
+                </div>`
+            )}
+            <div class="col-span-12 spance-y-1"></div>
+          </div>
+          <provider-row></provider-row>
+        </div>
+        <div class="col-span-5 panel">
+          ${when(
+            walletState.address,
+            () =>
+              html`<div>
+                <div class="sm:flex-auto font-medium">
+                  ${when(
+                    (this.totalBalance ?? 0) >= 0,
+                    () => html` <span class="text-xs" style="color:var(--sl-color-green-500)">Providing</span> `,
+                    () => html`
+                      <span class="text-xs" style="color:var(--sl-color-green-500)">Borrowing</span
+                      ><span class="text-xs text-sl-neutral-600">@</span><span class="text-xs">2.6%</span>
+                    `
+                  )}
+                  <div class="flex text-4xl my-1 items-center">
+                    <sl-icon outline name="currency-bitcoin"></sl-icon>
+                    ${Math.floor(Math.abs(this.protocolBalance?.total ?? 0) / 1e8)}.<span class="text-sl-neutral-600"
+                      >${Math.floor((Math.abs(this.protocolBalance?.total ?? 0) % 1e8) / 1e4)
+                        .toString()
+                        .padStart(4, '0')}</span
+                    >
+                    ${when(
+                      this.protocolBalance?.unconfirmed,
+                      () =>
+                        html`<span class="text-xs ml-1 border-l pl-2 text-sl-neutral-600 font-light">
+                          ${formatUnits(Math.abs(this.protocolBalance!.confirmed), 8)} confirmed<br />
+                          ${formatUnits(Math.abs(this.protocolBalance!.unconfirmed), 8)} unconfirmed
+                        </span>`
+                    )}
+                  </div>
+                  <div class="grid grid-cols-4 space-y-4 sm:grid-cols-12 sm:space-x-1 sm:space-y-1">
+                    <div class="col-span-4 space-y-2">
+                      <div class="relative panel font-medium">
+                        <span class="text-xs text-sl-neutral-600">Non-providing</span>
+                        <div class="flex text-xl my-1 items-center">
+                          <sl-icon outline name="currency-bitcoin"></sl-icon>${Math.floor(
+                            this.walletBalance / 1e8
+                          )}.<span class="text-sl-neutral-600"
+                            >${Math.floor((this.walletBalance % 1e8) / 1e4)
+                              .toString()
+                              .padStart(4, '0')}</span
+                          >
+                        </div>
+                        ${when(
+                          this.balanceUnconfirmed != 0,
+                          () =>
+                            html`<div class="flex text-xs items-center text-sl-neutral-600">
+                              ${formatUnits(Math.abs(this.balanceUnconfirmed), 8) + ' Unconfirmed'}
+                            </div>`
+                        )}
+                      </div>
+                    </div>
+                    <div class="col-span-4"></div>
+                    <div class="col-span-4 content-center">
+                      <div class="flex justify-center items-center">
+                        <sl-button
+                          class="supply relative inline-flex items-center justify-center"
+                          .variant=${this.walletBalance <= 0 ? 'default' : 'success'}
+                          @click=${() => this.supply()}
+                          ?disabled=${this.walletBalance <= 0}
+                          pill
+                        >
+                          <sl-icon slot="prefix" name="plus-circle-fill"></sl-icon>
+                          Self-custody BTC
+                        </sl-button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr />
+                <sl-tree class="max-h-96 overflow-auto">
+                  ${when(
+                    this.utxos != undefined && this.utxos.length == 0,
+                    () =>
+                      html`<div class="text-base p-2 space-x-1">
+                        <sl-icon name="file-earmark-x"></sl-icon><span>No Data Found.</span>
+                      </div>`
+                  )}
+                  ${map(
+                    this.utxos,
+                    (utxo) =>
+                      html`<sl-tree-item
+                        class="noexpand even:bg-[var(--sl-color-neutral-100)]"
+                        @click=${() => {
+                          this.accsPanel.value!.utxo = utxo
+                          this.accsPanel.value!.show()
+                        }}
+                      >
+                        <utxo-row class="p-4 flex items-center w-full" .utxo=${utxo}></utxo-row>
+                      </sl-tree-item>`
+                  )}
+                </sl-tree>
+              </div>`,
+            () =>
+              html`<div class="items-center">
+                <p class="text-center text-2xl text-neutral-600 space-x-2 space-y-2">
+                  Providing self-custodial trust on the Bitcoin network
+                </p>
+                <div class="my-4">
+                  <p class="text-center text-xs text-stone-400">FEATURE1 | FEATURE2 | FEATURE3</p>
+                </div>
+                <div class="text-center">
+                  <connect-button></connect-button>
+                </div>
+              </div>`
+          )}
+        </div>
       </div>
-      <sl-icon outline name="currency-bitcoin"></sl-icon>
-      <provider-row></provider-row>
     </div>`
   }
 }

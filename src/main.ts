@@ -228,7 +228,7 @@ export class AppMain extends LitElement {
                 Refresh
               </sl-button>
             </div>
-            <sl-tree class="max-h-96 overflow-auto">
+            <sl-tree class="max-h-96 overflow-auto border-2">
               ${when(
                 this.utxos != undefined && this.utxos.length == 0,
                 () =>
