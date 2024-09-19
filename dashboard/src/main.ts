@@ -107,6 +107,14 @@ export class DashboardMain extends LitElement {
     super.disconnectedCallback()
   }
 
+  get nodeList() {
+    var list: any = [
+      { name: 'RelinxNode1', total: '82.9 BTC', status: 'online', apy: '2.6%', amount: this.protocolBalance?.total },
+      { name: 'RelinxNode2', total: '27.9 BTC', status: 'online', apy: '3.1%', amount: this.protocolBalance?.total }
+    ]
+    return list
+  }
+
   get balanceUnconfirmed() {
     return walletState.balance?.unconfirmed ?? 0
   }
@@ -145,7 +153,7 @@ export class DashboardMain extends LitElement {
   }
 
   render() {
-    return html` <div class="mx-auto max-w-screen-2xl px-6 lg:px-0 pb-6">
+    return html` <div class="mx-auto max-w-screen-xl px-6 lg:px-0 pb-6">
       <nav class="flex justify-between py-4">
         <div class="flex">
           <a href="#" class="-m-1.5 p-1.5">
@@ -157,7 +165,7 @@ export class DashboardMain extends LitElement {
         </div>
       </nav>
       <div class="grid grid-cols-4 space-y-4 sm:grid-cols-12 sm:space-x-1 sm:space-y-1">
-        <div class="col-span-7">
+        <div class="col-span-8">
           <div class="grid grid-cols-4 space-y-4 sm:grid-cols-12 sm:space-x-1 sm:space-y-1">
             <div class="col-span-12"></div>
             ${Object.entries(this.infomation ?? {}).map(
@@ -177,7 +185,7 @@ export class DashboardMain extends LitElement {
           </div>
           <provider-row></provider-row>
         </div>
-        <div class="col-span-5 panel">
+        <div class="col-span-4 panel">
           ${when(
             walletState.address,
             () =>
@@ -208,7 +216,7 @@ export class DashboardMain extends LitElement {
                     )}
                   </div>
                   <div class="grid grid-cols-4 space-y-4 sm:grid-cols-12 sm:space-x-1 sm:space-y-1">
-                    <div class="col-span-4 space-y-2">
+                    <div class="col-span-6 space-y-2">
                       <div class="relative panel font-medium">
                         <span class="text-xs text-sl-neutral-600">Non-providing</span>
                         <div class="flex text-xl my-1 items-center">
@@ -229,7 +237,7 @@ export class DashboardMain extends LitElement {
                         )}
                       </div>
                     </div>
-                    <div class="col-span-4"></div>
+                    <div class="col-span-2"></div>
                     <div class="col-span-4 content-center">
                       <div class="flex justify-center items-center">
                         <sl-button
@@ -248,25 +256,46 @@ export class DashboardMain extends LitElement {
                 </div>
                 <hr />
                 <sl-tree class="max-h-96 overflow-auto">
-                  ${when(
-                    this.utxos != undefined && this.utxos.length == 0,
-                    () =>
-                      html`<div class="text-base p-2 space-x-1">
-                        <sl-icon name="file-earmark-x"></sl-icon><span>No Data Found.</span>
-                      </div>`
-                  )}
                   ${map(
-                    this.utxos,
-                    (utxo) =>
+                    this.nodeList,
+                    (node: any) =>
                       html`<sl-tree-item
                         class="noexpand even:bg-[var(--sl-color-neutral-100)]"
                         @click=${() => {
-                          this.accsPanel.value!.utxo = utxo
-                          this.accsPanel.value!.show()
+                          // this.accsPanel.value!.utxo = node
+                          // this.accsPanel.value!.show()
                         }}
                       >
-                        <utxo-row class="p-4 flex items-center w-full" .utxo=${utxo}></utxo-row>
-                      </sl-tree-item>`
+                        <div class="ml-1">
+                          <div class="grid grid-cols-4 space-y-4 sm:grid-cols-12 sm:space-x-1 sm:space-y-1">
+                            <div class="col-span-3 text-left">
+                              <span class="text-xs">${node.name}</span>
+                            </div>
+                            <div class="col-span-6"></div>
+                            <div class="col-span-3 text-right">
+                              <span class="text-xs ${node.status == 'online' ? 'text-lime-600' : 'text-red-600'}">
+                                ${node.status}</span
+                              >
+                            </div>
+                          </div>
+
+                          <div class="flex text-2xl my-1 items-center">
+                            <sl-icon outline name="currency-bitcoin"></sl-icon>
+                            <span class="text-sl-neutral-600">${node.total}</span>
+                          </div>
+                          <div class="flex text-xs my-1 items-center">
+                            <span class="text-sl-neutral-600">@${node.apy}</span>
+                            <div class="flex text-xs my-1 items-center">&nbsp;/&nbsp;</div>
+                            <div class="flex text-xs my-1 items-center">
+                              <span class="text-sl-neutral-600 text-right"
+                                >${formatUnits(Math.abs(node.amount ?? 0), 8)}</span
+                              >
+                              <sl-icon outline name="currency-bitcoin"></sl-icon>
+                              providing
+                            </div>
+                          </div>
+                        </sl-tree-item>
+                      </div>`
                   )}
                 </sl-tree>
               </div>`,
