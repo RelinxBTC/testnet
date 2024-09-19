@@ -9,7 +9,6 @@ export function getElapsedTime(timer: any): String {
   if (timer ?? 0 > 0) {
     var time = new Date().getTime()
     var delta = (time - 1000 * (timer ?? 0)) / 1000
-    console.log('delta:' + delta)
     var d = Math.floor(delta / 60 / 60 / 24)
     var h = Math.floor((delta / 60 / 60) % 24)
     var m = Math.floor((delta / 60) % 60)
