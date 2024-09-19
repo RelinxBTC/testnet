@@ -1,6 +1,6 @@
 import { LitElement, html, unsafeCSS } from 'lit'
 import { customElement, state } from 'lit/decorators.js'
-import { Ref, createRef } from 'lit/directives/ref.js'
+import { Ref, createRef, ref } from 'lit/directives/ref.js'
 import baseStyle from './base.css?inline'
 import style from './main.css?inline'
 import { when } from 'lit/directives/when.js'
@@ -24,6 +24,8 @@ import { WithdrawPanel } from '../../src/components/withdraw'
 import './components/provider'
 import '../../src/components/connect.ts'
 import '../../src/components/utxos.ts'
+import '../../src/components/supply'
+import '../../src/components/withdraw'
 import './components/timer.ts'
 import { map } from 'lit/directives/map.js'
 
@@ -128,7 +130,7 @@ export class DashboardMain extends LitElement {
   }
 
   supply() {
-    this.supplyPanel.value?.show()
+    alert('Not yet implemented!')
   }
 
   withdraw() {
@@ -238,7 +240,7 @@ export class DashboardMain extends LitElement {
                           pill
                         >
                           <sl-icon slot="prefix" name="plus-circle-fill"></sl-icon>
-                          Self-custody BTC
+                          Add BTC
                         </sl-button>
                       </div>
                     </div>
