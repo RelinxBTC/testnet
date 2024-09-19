@@ -1,6 +1,6 @@
 import { LitElement, html, unsafeCSS } from 'lit'
 import { customElement, state } from 'lit/decorators.js'
-import { Ref, createRef, ref } from 'lit/directives/ref.js'
+import { Ref, createRef } from 'lit/directives/ref.js'
 import baseStyle from './base.css?inline'
 import style from './main.css?inline'
 import { when } from 'lit/directives/when.js'
@@ -22,12 +22,14 @@ import { formatUnits } from '../../src/lib/units'
 import { SupplyPanel } from '../../src/components/supply'
 import { WithdrawPanel } from '../../src/components/withdraw'
 import './components/provider'
+import './components/node.ts'
 import '../../src/components/connect.ts'
 import '../../src/components/utxos.ts'
 import '../../src/components/supply'
 import '../../src/components/withdraw'
 import './components/timer.ts'
 import { map } from 'lit/directives/map.js'
+import { toastImportant } from '../../src/lib/toast'
 
 import { Unsubscribe, walletState } from '../../src/lib/walletState'
 
@@ -60,6 +62,8 @@ export class DashboardMain extends LitElement {
   @state() utxos?: []
   @state() height?: number
   @state() updating?: boolean
+  @state() subnode?: boolean
+  @state() currentNode: any
   static styles = [unsafeCSS(baseStyle), unsafeCSS(style)]
 
   private timedUpdater?: Promise<any>
@@ -109,8 +113,8 @@ export class DashboardMain extends LitElement {
 
   get nodeList() {
     var list: any = [
-      { name: 'RelinxNode1', total: '82.9 BTC', status: 'online', apy: '2.6%', amount: this.protocolBalance?.total },
-      { name: 'RelinxNode2', total: '27.9 BTC', status: 'online', apy: '3.1%', amount: this.protocolBalance?.total }
+      { name: 'RelinxNode0', total: '82.9 BTC', status: 'live', apy: '2.6%', amount: this.protocolBalance?.total },
+      { name: 'RelinxNode2', total: '27.9 BTC', status: 'live', apy: '3.1%', amount: this.protocolBalance?.total }
     ]
     return list
   }
@@ -138,7 +142,7 @@ export class DashboardMain extends LitElement {
   }
 
   supply() {
-    alert('Not yet implemented!')
+    toastImportant('Not yet implemented! This feature is under intensive development.')
   }
 
   withdraw() {
@@ -165,26 +169,47 @@ export class DashboardMain extends LitElement {
         </div>
       </nav>
       <div class="grid grid-cols-4 space-y-4 sm:grid-cols-12 sm:space-x-1 sm:space-y-1">
-        <div class="col-span-8">
-          <div class="grid grid-cols-4 space-y-4 sm:grid-cols-12 sm:space-x-1 sm:space-y-1">
-            <div class="col-span-12"></div>
-            ${Object.entries(this.infomation ?? {}).map(
-              ([key, value]) =>
-                html` <div class="col-span-3 space-y-1">
-                  <div class="relative panel font-medium">
-                    <span class="text-xs text-sl-neutral-600">${key}</span>
-                    ${when(
-                      key == 'LAST COMMIT',
-                      () => html`<timer-ago class="flex text-2xl items-center" timestamp=${value}></timer-ago>`
-                    )}
-                    ${when(key != 'LAST COMMIT', () => html`<div class="flex text-2xl items-center">${value}</div>`)}
-                  </div>
-                </div>`
-            )}
-            <div class="col-span-12 spance-y-1"></div>
-          </div>
-          <provider-row></provider-row>
-        </div>
+        ${when(
+          this.subnode,
+          () =>
+            html` <div class="col-span-8">
+              <nav class="flex justify-between py-4">
+                <div class="flex">
+                  <sl-button label="Back" @click=${() => (this.subnode = false)}>
+                  <sl-icon name="chevron-left"></sl-icon> BACK
+                  </sl-icon-button>
+                </div>
+              </nav>
+              <node-panel .utxos=${this.utxos} .node=${this.currentNode}></node-panel>
+            </div>`
+        )}
+        ${when(
+          !this.subnode,
+          () =>
+            html` <div class="col-span-8">
+              <div class="grid grid-cols-4 space-y-4 sm:grid-cols-12 sm:space-x-1 sm:space-y-1">
+                <div class="col-span-12"></div>
+                ${Object.entries(this.infomation ?? {}).map(
+                  ([key, value]) =>
+                    html` <div class="col-span-3 space-y-1">
+                      <div class="relative panel font-medium">
+                        <span class="text-xs text-sl-neutral-600">${key}</span>
+                        ${when(
+                          key == 'LAST COMMIT',
+                          () => html`<timer-ago class="flex text-2xl items-center" timestamp=${value}></timer-ago>`
+                        )}
+                        ${when(
+                          key != 'LAST COMMIT',
+                          () => html`<div class="flex text-2xl items-center">${value}</div>`
+                        )}
+                      </div>
+                    </div>`
+                )}
+                <div class="col-span-12 spance-y-1"></div>
+              </div>
+              <provider-row></provider-row>
+            </div>`
+        )}
         <div class="col-span-4 panel">
           ${when(
             walletState.address,
@@ -237,8 +262,8 @@ export class DashboardMain extends LitElement {
                         )}
                       </div>
                     </div>
-                    <div class="col-span-2"></div>
-                    <div class="col-span-4 content-center">
+                    <div class="col-span-1"></div>
+                    <div class="col-span-5 content-center">
                       <div class="flex justify-center items-center">
                         <sl-button
                           class="supply relative inline-flex items-center justify-center"
@@ -248,7 +273,7 @@ export class DashboardMain extends LitElement {
                           pill
                         >
                           <sl-icon slot="prefix" name="plus-circle-fill"></sl-icon>
-                          Add BTC
+                          Add SCC Node
                         </sl-button>
                       </div>
                     </div>
@@ -262,6 +287,8 @@ export class DashboardMain extends LitElement {
                       html`<sl-tree-item
                         class="noexpand even:bg-[var(--sl-color-neutral-100)]"
                         @click=${() => {
+                          this.subnode = true
+                          this.currentNode = node
                           // this.accsPanel.value!.utxo = node
                           // this.accsPanel.value!.show()
                         }}
@@ -273,7 +300,7 @@ export class DashboardMain extends LitElement {
                             </div>
                             <div class="col-span-6"></div>
                             <div class="col-span-3 text-right">
-                              <span class="text-xs ${node.status == 'online' ? 'text-lime-600' : 'text-red-600'}">
+                              <span class="text-xs ${node.status == 'live' ? 'text-lime-600' : 'text-red-600'}">
                                 ${node.status}</span
                               >
                             </div>
@@ -294,8 +321,8 @@ export class DashboardMain extends LitElement {
                               providing
                             </div>
                           </div>
-                        </sl-tree-item>
-                      </div>`
+                        </div>
+                      </sl-tree-item>`
                   )}
                 </sl-tree>
               </div>`,
